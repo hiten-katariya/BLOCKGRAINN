@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JustRation – Dashboard Preview</title>
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .sidebar-link:hover,
+        .sidebar-link.active {
+            background-color: #4f46e5;
+            color: white;
+        }
+    </style>
+</head>
+
+<body class="h-screen flex bg-gray-100 overflow-hidden">
+
+    <!-- Sidebar -->
+    <aside class="w-20 lg:w-64 bg-white shadow-lg flex flex-col">
+        <div class="h-20 flex items-center justify-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+            <i class="fas fa-cubes-stacked text-3xl lg:mr-3"></i>
+            <span class="hidden lg:inline text-2xl font-extrabold">JustRation</span>
+        </div>
+
+        <nav class="mt-8 flex-1 space-y-2 px-2 lg:px-4">
+            <a class="sidebar-link active flex items-center justify-center lg:justify-start py-3 px-4 rounded-lg font-semibold">
+                <i class="fas fa-tachometer-alt w-6 text-center lg:mr-3"></i>
+                <span class="hidden lg:inline">Dashboard</span>
+            </a>
+            <a class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-4 rounded-lg font-semibold">
+                <i class="fas fa-warehouse w-6 text-center lg:mr-3"></i>
+                <span class="hidden lg:inline">Central Stock</span>
+            </a>
+            <a class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-4 rounded-lg font-semibold">
+                <i class="fas fa-truck-fast w-6 text-center lg:mr-3"></i>
+                <span class="hidden lg:inline">Dispatch</span>
+            </a>
+            <a class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-4 rounded-lg font-semibold">
+                <i class="fas fa-users w-6 text-center lg:mr-3"></i>
+                <span class="hidden lg:inline">Distribution</span>
+            </a>
+            <a class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-4 rounded-lg font-semibold">
+                <i class="fas fa-receipt w-6 text-center lg:mr-3"></i>
+                <span class="hidden lg:inline">Ledger</span>
+            </a>
+            <a class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-4 rounded-lg font-semibold">
+                <i class="fas fa-cogs w-6 text-center lg:mr-3"></i>
+                <span class="hidden lg:inline">Administration</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 p-8 overflow-y-auto">
+
+        <h1 class="text-4xl font-extrabold mb-8">Dashboard</h1>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="bg-white p-6 rounded-xl shadow border-l-4 border-blue-500">
+                <h2 class="text-gray-500 text-lg font-semibold">Total Stock</h2>
+                <p class="text-4xl font-bold mt-2">1,20,000 Kgs</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow border-l-4 border-green-500">
+                <h2 class="text-gray-500 text-lg font-semibold">Beneficiaries</h2>
+                <p class="text-4xl font-bold mt-2">2,350</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow border-l-4 border-yellow-500">
+                <h2 class="text-gray-500 text-lg font-semibold">Transactions</h2>
+                <p class="text-4xl font-bold mt-2">8,912</p>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="bg-white p-6 rounded-xl shadow max-w-3xl">
+            <h2 class="text-xl font-bold mb-4">Stock Distribution</h2>
+            <canvas id="stockChart" height="180"></canvas>
+        </div>
+
+    </main>
+
+    <!-- Chart Script -->
+    <script>
+        const ctx = document.getElementById('stockChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Wheat', 'Rice', 'Sugar'],
+                datasets: [{
+                    data: [55000, 45000, 20000],
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'],
+                    borderWidth: 4,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: {
+                    animateRotate: true,
+                    duration: 1500
+                },
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
