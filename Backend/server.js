@@ -26,6 +26,10 @@ app.set("views", path.join(__dirname, "views"));
 app.use(express.static(path.join(__dirname, "public")));
 
 /* ============ FRONTEND ROUTES ============ */
+app.get("/test", (req, res) => {
+  res.render("test"); // views/test.ejs
+});
+
 app.get("/login", (req, res) => {
   res.render("login"); // views/login.ejs
 });

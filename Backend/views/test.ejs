@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JustRation - Quick Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-8">
+        <h1 class="text-3xl font-bold mb-6">JustRation - Quick Login Test</h1>
+        
+        <div class="space-y-4">
+            <div class="border-l-4 border-blue-500 bg-blue-50 p-4">
+                <h2 class="font-bold text-lg mb-2">Test Login System:</h2>
+                <ol class="list-decimal ml-5 space-y-2">
+                    <li>Click "Auto Login as Admin" below</li>
+                    <li>You'll be redirected to the main app</li>
+                    <li>If you see "Failed to fetch data", check browser console (F12)</li>
+                </ol>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <button onclick="loginAs('admin')" class="bg-red-600 text-white font-bold py-4 px-6 rounded-lg hover:bg-red-700 transition">
+                    👑 Auto Login as Admin
+                </button>
+                <button onclick="loginAs('central001')" class="bg-blue-600 text-white font-bold py-4 px-6 rounded-lg hover:bg-blue-700 transition">
+                    🏛️ Auto Login as Central Officer
+                </button>
+                <button onclick="loginAs('warehouse001')" class="bg-green-600 text-white font-bold py-4 px-6 rounded-lg hover:bg-green-700 transition">
+                    🏭 Auto Login as Warehouse Manager
+                </button>
+                <button onclick="loginAs('fps001')" class="bg-purple-600 text-white font-bold py-4 px-6 rounded-lg hover:bg-purple-700 transition">
+                    🏪 Auto Login as FPS Operator
+                </button>
+            </div>
+
+            <div class="border-l-4 border-green-500 bg-green-50 p-4 mt-6">
+                <h2 class="font-bold text-lg mb-2">Manual Links:</h2>
+                <div class="space-y-2">
+                    <a href="/login" class="block text-blue-600 hover:underline">→ Go to Login Page</a>
+                    <a href="/" class="block text-blue-600 hover:underline">→ Go to Main App (requires login)</a>
+                    <button onclick="clearSession()" class="text-red-600 hover:underline">→ Clear Session & Logout</button>
+                </div>
+            </div>
+
+            <div class="border-l-4 border-yellow-500 bg-yellow-50 p-4 mt-6">
+                <h2 class="font-bold text-lg mb-2">Test API Connection:</h2>
+                <button onclick="testAPI()" class="bg-yellow-600 text-white font-bold py-2 px-4 rounded hover:bg-yellow-700">
+                    Test API Endpoint
+                </button>
+                <pre id="api-result" class="mt-4 bg-gray-800 text-green-400 p-4 rounded text-sm overflow-auto max-h-64 hidden"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const users = {
+            'admin': {
+                password: 'admin123',
+                role: 'admin',
+                name: 'System Administrator',
+                permissions: ['dashboard', 'central-admin', 'godown-to-warehouse', 'warehouse-to-cityhub', 'cityhub-to-fps', 'beneficiary', 'transaction', 'system-admin']
+            },
+            'central001': {
+                password: 'central123',
+                role: 'central',
+                name: 'Central Officer',
+                permissions: ['dashboard', 'central-admin', 'godown-to-warehouse', 'warehouse-to-cityhub', 'cityhub-to-fps', 'beneficiary', 'transaction', 'system-admin']
+            },
+            'warehouse001': {
+                password: 'warehouse123',
+                role: 'warehouse',
+                name: 'Warehouse Manager',
+                permissions: ['warehouse-to-cityhub', 'cityhub-to-fps', 'beneficiary', 'transaction']
+            },
+            'fps001': {
+                password: 'fps123',
+                role: 'fps',
+                name: 'FPS Operator',
+                permissions: ['beneficiary', 'transaction']
+            }
+        };
+
+        function loginAs(userId) {
+            const user = users[userId];
+            localStorage.setItem('currentUser', JSON.stringify({
+                userId: userId,
+                name: user.name,
+                role: user.role,
+                permissions: user.permissions
+            }));
+            alert(`✅ Logged in as ${user.name}!\\nRedirecting to main app...`);
+            window.location.href = '/';
+        }
+
+        function clearSession() {
+            localStorage.removeItem('currentUser');
+            alert('✅ Session cleared! You can now test login again.');
+        }
+
+        async function testAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.classList.remove('hidden');
+            resultDiv.textContent = 'Testing API connection...';
+            
+            try {
+                const response = await fetch('/api/db');
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+                if (data.error) {
+                    resultDiv.classList.add('text-red-400');
+                    resultDiv.classList.remove('text-green-400');
+                } else {
+                    resultDiv.classList.add('text-green-400');
+                    resultDiv.classList.remove('text-red-400');
+                }
+            } catch (error) {
+                resultDiv.textContent = `❌ API Error: ${error.message}`;
+                resultDiv.classList.add('text-red-400');
+                resultDiv.classList.remove('text-green-400');
+            }
+        }
+
+        // Show current session status
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+        if (currentUser) {
+            const banner = document.createElement('div');
+            banner.className = 'bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4';
+            banner.innerHTML = `<strong>Current Session:</strong> ${currentUser.name} (${currentUser.role})`;
+            document.querySelector('.max-w-4xl').insertBefore(banner, document.querySelector('.max-w-4xl').firstChild);
+        }
+    </script>
+</body>
+</html>

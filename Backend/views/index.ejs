@@ -4,6 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JustRation - PDS Supply Chain Dashboard</title>
+    
+    <!-- Authentication Check - Must run FIRST before anything loads -->
+    <script>
+        (function() {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+            if (!currentUser) {
+                window.location.replace('/login');
+                throw new Error('Not authenticated');
+            }
+        })();
+    </script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -119,15 +131,14 @@
 
     <script src="/script.js"></script>
     <script>
-    // Authentication Check
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
-    if (!currentUser) {
-        window.location.href = '/login';
-    }
-
-    // Role-based permissions
-    const userPermissions = currentUser ? currentUser.permissions : [];
+    // Get user from authentication check
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    const userPermissions = currentUser.permissions;
     
+    let charts = {};
+    let db = {};
+    let isLoading = false;
+
     // Initialize user profile display
     function initializeUserProfile() {
         if (currentUser) {
@@ -148,14 +159,6 @@
                 link.style.display = 'none';
             }
         });
-        
-        // If dashboard not available, show first available page
-        if (!userPermissions.includes('dashboard')) {
-            const firstAvailableView = userPermissions[0];
-            if (firstAvailableView) {
-                setTimeout(() => showView(firstAvailableView + '-view'), 100);
-            }
-        }
     }
 
     function handleLogout() {
@@ -164,13 +167,6 @@
             window.location.href = '/login';
         }
     }
-
-    // Call on page load
-    initializeUserProfile();
-    
-    let charts = {};
-    let db = {};
-    let isLoading = false;
 
     async function loadDBFromFirebase() {
         if (isLoading) return;
@@ -201,6 +197,12 @@
             }
         } catch (error) {
             console.error('Error loading data from Firebase:', error);
+            showToast('Failed to load data. Using defaults.', 'error');
+            // Set default values
+            db.grains = ['Wheat', 'Rice', 'Sugar'];
+            db.transactions = [];
+            db.locations = {};
+            db.beneficiaries = {};
         }
         isLoading = false;
     }
@@ -930,6 +932,9 @@
         
         // Load data from Firebase on page load
         loadDBFromFirebase().then(() => {
+            // Initialize user profile after data is loaded
+            initializeUserProfile();
+            
             // Beneficiary view listeners
             document.getElementById('beneficiary-reg-state-select').addEventListener('change', renderBeneficiaryView);
             document.getElementById('beneficiary-reg-city-select').addEventListener('change', renderBeneficiaryView);
@@ -954,6 +959,9 @@
             const firstPermission = userPermissions[0];
             const viewToShow = firstPermission ? firstPermission + '-view' : 'beneficiary-view';
             showView(viewToShow);
+        }).catch(error => {
+            console.error('Failed to load data:', error);
+            showToast('Failed to load data from server. Please refresh the page.', 'error');
         });
     });
     </script>
