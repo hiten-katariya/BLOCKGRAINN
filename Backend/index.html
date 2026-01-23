@@ -169,3 +169,111 @@ function renderInventory() {
 
 </body>
 </html>
+
+<!-- Web3 & Ganache Integration -->
+<script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+
+<script>
+let web3;
+let contract;
+let account;
+
+// Smart Contract ABI (you'll need to deploy a contract to Ganache first)
+const contractABI = [
+    {
+        "inputs": [{"internalType": "string", "name": "_grain", "type": "string"}, {"internalType": "uint256", "name": "_quantity", "type": "uint256"}],
+        "name": "addStock",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [{"internalType": "string", "name": "", "type": "string"}],
+        "name": "stock",
+        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function"
+    }
+];
+
+// Replace with your deployed contract address from Ganache
+const contractAddress = "0xYourContractAddressHere";
+
+// Connect to Ganache
+async function initWeb3() {
+    if (window.ethereum) {
+        web3 = new Web3(window.ethereum);
+        try {
+            await window.ethereum.request({ method: 'eth_requestAccounts' });
+        } catch (error) {
+            console.error("User denied account access");
+        }
+    } else if (typeof web3 !== 'undefined') {
+        web3 = new Web3(web3.currentProvider);
+    } else {
+        // Connect directly to Ganache
+        web3 = new Web3(new Web3.providers.HttpProvider("http://127.0.0.1:7545"));
+    }
+
+    const accounts = await web3.eth.getAccounts();
+    account = accounts[0];
+    contract = new web3.eth.Contract(contractABI, contractAddress);
+    
+    console.log("Connected to Ganache. Account:", account);
+    loadStockFromBlockchain();
+}
+
+// Add stock to blockchain
+async function addStockBlockchain(grain, quantity) {
+    try {
+        await contract.methods.addStock(grain, quantity).send({ from: account, gas: 3000000 });
+        console.log("Stock added to blockchain");
+        loadStockFromBlockchain();
+    } catch (error) {
+        console.error("Blockchain error:", error);
+        alert("Failed to add stock to blockchain");
+    }
+}
+
+// Load stock from blockchain
+async function loadStockFromBlockchain() {
+    const grains = ['Wheat', 'Rice', 'Sugar'];
+    stock = {};
+    
+    for (let grain of grains) {
+        try {
+            const qty = await contract.methods.stock(grain).call();
+            if (qty > 0) {
+                stock[grain] = Number(qty);
+            }
+        } catch (error) {
+            console.error(`Error loading ${grain}:`, error);
+        }
+    }
+    renderInventory();
+}
+
+// Modified addStock function to use blockchain
+async function addStockWithBlockchain() {
+    const g = document.getElementById('grain').value;
+    const q = Number(document.getElementById('qty').value);
+    if (!q || q <= 0) return alert("Enter valid quantity");
+
+    await addStockBlockchain(g, q);
+    document.getElementById('qty').value = "";
+}
+
+// Initialize on page load
+window.addEventListener('load', initWeb3);
+</script>
+
+<!-- Update the Add Stock button to use blockchain -->
+<script>
+// Override the original addStock button
+document.addEventListener('DOMContentLoaded', function() {
+    const addButton = document.querySelector('button[onclick="addStock()"]');
+    if (addButton) {
+        addButton.setAttribute('onclick', 'addStockWithBlockchain()');
+    }
+});
+</script>

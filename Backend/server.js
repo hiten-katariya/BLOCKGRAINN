@@ -9,6 +9,8 @@ const {
   transactionsRef
 } = require("./firebase");
 
+const blockchain = require("./blockchain");
+
 const app = express();
 
 /* ============ MIDDLEWARE ============ */
@@ -37,23 +39,31 @@ app.get("/api/health", (req, res) => {
 
 /* GET ALL DATA */
 app.get("/api/db", async (req, res) => {
+  try {
+    const locations = await locationsRef.get();
+    const beneficiaries = await beneficiariesRef.get();
+    const grains = await grainsRef.get();
+    const transactions = await transactionsRef
+      .orderBy("timestamp", "desc")
+      .get();
 
-  const locations = await locationsRef.get();
-  const beneficiaries = await beneficiariesRef.get();
-  const grains = await grainsRef.get();
-  const transactions = await transactionsRef
-    .orderBy("timestamp", "desc")
-    .get();
-
-  res.json({
-    locations: locations.docs.map(d => ({ id: d.id, ...d.data() })),
-    beneficiaries: beneficiaries.docs.map(d => ({ id: d.id, ...d.data() })),
-    grains: grains.docs.map(d => {
-      const data = d.data();
-      return data.name || d.id;
-    }),
-    transactions: transactions.docs.map(d => d.data())
-  });
+    res.json({
+      locations: locations.docs.map(d => ({ id: d.id, ...d.data() })),
+      beneficiaries: beneficiaries.docs.map(d => ({ id: d.id, ...d.data() })),
+      grains: grains.docs.map(d => {
+        const data = d.data();
+        return data.name || d.id;
+      }),
+      transactions: transactions.docs.map(d => d.data())
+    });
+  } catch (error) {
+    console.error('Error fetching data from Firebase:', error.message);
+    res.status(500).json({ 
+      error: true, 
+      message: 'Failed to fetch data from Firebase',
+      details: error.message 
+    });
+  }
 });
 
 /* ADD STOCK */
@@ -77,8 +87,17 @@ app.post("/api/add-stock", async (req, res) => {
   data.stock[grain] = (data.stock[grain] || 0) + quantity;
   await ref.update({ stock: data.stock });
 
+  // Record on blockchain
+  const blockchainHash = await blockchain.recordTransaction(
+    "Govt Procurement",
+    data.name,
+    grain,
+    quantity,
+    "transfer"
+  );
+
   await transactionsRef.add({
-    hash: "0x" + Date.now(),
+    hash: blockchainHash || "0x" + Date.now(),
     timestamp: new Date().toLocaleString(),
     from: "Govt Procurement",
     to: data.name,
@@ -86,8 +105,11 @@ app.post("/api/add-stock", async (req, res) => {
     type: "transfer"
   });
 
-  res.json({ message: "Stock added successfully" });
-  console.log("Stock added successfully");
+  res.json({ 
+    message: "Stock added successfully",
+    blockchainHash: blockchainHash
+  });
+  console.log("Stock added successfully" + (blockchainHash ? " (Blockchain: " + blockchainHash + ")" : ""));
 });
 
 /* DISPATCH */
@@ -123,8 +145,17 @@ app.post("/api/dispatch", async (req, res) => {
   await fromRef.update({ stock: from.stock });
   await toRef.update({ stock: to.stock });
 
+  // Record on blockchain
+  const blockchainHash = await blockchain.recordTransaction(
+    from.name,
+    to.name,
+    grain,
+    quantity,
+    "transfer"
+  );
+
   await transactionsRef.add({
-    hash: "0x" + Date.now(),
+    hash: blockchainHash || "0x" + Date.now(),
     timestamp: new Date().toLocaleString(),
     from: from.name,
     to: to.name,
@@ -132,7 +163,10 @@ app.post("/api/dispatch", async (req, res) => {
     type: "transfer"
   });
 
-  res.json({ message: "Consignment dispatched" });
+  res.json({ 
+    message: "Consignment dispatched",
+    blockchainHash: blockchainHash
+  });
 });
 
 /* ADD BENEFICIARY */
@@ -368,6 +402,14 @@ app.post("/api/delete-location", async (req, res) => {
 });
 
 /* ============ START SERVER ============ */
-app.listen(3000, () => {
-  console.log("Server running at http://localhost:3000");
-});
+async function startServer() {
+  // Initialize blockchain connection
+  await blockchain.initialize();
+  
+  app.listen(3000, () => {
+    console.log("🚀 Server running at http://localhost:3000");
+    console.log("🔗 Blockchain status:", blockchain.isConnected() ? "✅ Connected" : "❌ Not connected");
+  });
+}
+
+startServer();

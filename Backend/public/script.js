@@ -85,6 +85,10 @@ async function addGrainToFirebase(grainName) {
       body: JSON.stringify({ grainName })
     });
     const result = await res.json();
+    if (result.error) {
+      showToast(result.message || 'Failed to add grain', 'error');
+      return null;
+    }
     return result;
   } catch (error) {
     console.error('Error adding grain:', error);
