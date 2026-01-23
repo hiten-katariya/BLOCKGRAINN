@@ -54,32 +54,54 @@
             <i class="fas fa-cubes-stacked text-3xl lg:mr-3"></i>
             <span class="text-2xl font-extrabold hidden lg:inline">JustRation</span>
         </div>
-        <nav class="mt-8 flex-1">
-            <a onclick="showView('dashboard-view')" class="sidebar-link active flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+        
+        <!-- User Profile -->
+        <div id="user-profile" class="px-4 py-4 border-b bg-gray-50 hidden lg:block">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full w-10 h-10 flex items-center justify-center font-bold">
+                    <span id="user-initial">A</span>
+                </div>
+                <div class="flex-1">
+                    <div class="font-bold text-gray-800 text-sm" id="user-name">User</div>
+                    <div class="text-xs text-gray-500" id="user-role">Role</div>
+                </div>
+            </div>
+        </div>
+        
+        <nav class="mt-4 flex-1" id="sidebar-nav">
+            <a onclick="showView('dashboard-view')" class="sidebar-link active flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1" data-permission="dashboard">
                 <i class="fas fa-tachometer-alt w-6 text-center lg:mr-3"></i><span class="hidden lg:inline">Dashboard</span>
             </a>
-            <a onclick="showView('central-admin-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+            <a onclick="showView('central-admin-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1" data-permission="central-admin">
                 <i class="fas fa-warehouse w-6 text-center lg:mr-3"></i><span class="hidden lg:inline">Central Stock</span>
             </a>
-            <a onclick="showView('godown-to-warehouse-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+            <a onclick="showView('godown-to-warehouse-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1" data-permission="godown-to-warehouse">
                 <i class="fas fa-arrow-right w-6 text-center lg:mr-3"></i><span class="hidden lg:inline text-xs">Godown→Warehouse</span>
             </a>
-            <a onclick="showView('warehouse-to-cityhub-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+            <a onclick="showView('warehouse-to-cityhub-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1" data-permission="warehouse-to-cityhub">
                 <i class="fas fa-arrow-right w-6 text-center lg:mr-3"></i><span class="hidden lg:inline text-xs">Warehouse→City</span>
             </a>
-            <a onclick="showView('cityhub-to-fps-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+            <a onclick="showView('cityhub-to-fps-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1" data-permission="cityhub-to-fps">
                 <i class="fas fa-arrow-right w-6 text-center lg:mr-3"></i><span class="hidden lg:inline text-xs">City→FPS</span>
             </a>
-            <a onclick="showView('beneficiary-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+            <a onclick="showView('beneficiary-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1" data-permission="beneficiary">
                 <i class="fas fa-users w-6 text-center lg:mr-3"></i><span class="hidden lg:inline">Distribution</span>
             </a>
-            <a onclick="showView('transaction-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+            <a onclick="showView('transaction-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1" data-permission="transaction">
                 <i class="fas fa-receipt w-6 text-center lg:mr-3"></i><span class="hidden lg:inline">Ledger</span>
             </a>
-            <a onclick="showView('system-admin-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+            <a onclick="showView('system-admin-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1" data-permission="system-admin">
                 <i class="fas fa-cogs w-6 text-center lg:mr-3"></i><span class="hidden lg:inline">Administration</span>
             </a>
         </nav>
+        
+        <!-- Logout Button -->
+        <div class="p-4 border-t">
+            <button onclick="handleLogout()" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center">
+                <i class="fas fa-sign-out-alt lg:mr-2"></i>
+                <span class="hidden lg:inline">Logout</span>
+            </button>
+        </div>
     </aside>
 
     <main class="flex-1 p-6 md:p-10 overflow-y-auto">
@@ -97,6 +119,55 @@
 
     <script src="/script.js"></script>
     <script>
+    // Authentication Check
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
+    if (!currentUser) {
+        window.location.href = '/login';
+    }
+
+    // Role-based permissions
+    const userPermissions = currentUser ? currentUser.permissions : [];
+    
+    // Initialize user profile display
+    function initializeUserProfile() {
+        if (currentUser) {
+            document.getElementById('user-initial').textContent = currentUser.name.charAt(0).toUpperCase();
+            document.getElementById('user-name').textContent = currentUser.name;
+            document.getElementById('user-role').textContent = currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1);
+            
+            // Filter navigation based on permissions
+            filterNavigationByRole();
+        }
+    }
+
+    function filterNavigationByRole() {
+        const allLinks = document.querySelectorAll('.sidebar-link');
+        allLinks.forEach(link => {
+            const permission = link.getAttribute('data-permission');
+            if (permission && !userPermissions.includes(permission)) {
+                link.style.display = 'none';
+            }
+        });
+        
+        // If dashboard not available, show first available page
+        if (!userPermissions.includes('dashboard')) {
+            const firstAvailableView = userPermissions[0];
+            if (firstAvailableView) {
+                setTimeout(() => showView(firstAvailableView + '-view'), 100);
+            }
+        }
+    }
+
+    function handleLogout() {
+        if (confirm('Are you sure you want to logout?')) {
+            localStorage.removeItem('currentUser');
+            window.location.href = '/login';
+        }
+    }
+
+    // Call on page load
+    initializeUserProfile();
+    
     let charts = {};
     let db = {};
     let isLoading = false;
@@ -813,10 +884,29 @@
     }
 
     function showView(viewId) {
+        // Check permission before showing view
+        const permissionMap = {
+            'dashboard-view': 'dashboard',
+            'central-admin-view': 'central-admin',
+            'godown-to-warehouse-view': 'godown-to-warehouse',
+            'warehouse-to-cityhub-view': 'warehouse-to-cityhub',
+            'cityhub-to-fps-view': 'cityhub-to-fps',
+            'beneficiary-view': 'beneficiary',
+            'transaction-view': 'transaction',
+            'system-admin-view': 'system-admin'
+        };
+        
+        const requiredPermission = permissionMap[viewId];
+        if (requiredPermission && !userPermissions.includes(requiredPermission)) {
+            showToast('You do not have permission to access this page', 'error');
+            return;
+        }
+        
         document.querySelectorAll('.view-content').forEach(v => v.classList.add('hidden'));
         document.getElementById(viewId).classList.remove('hidden');
         document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
-        document.querySelector(`.sidebar-link[onclick*="${viewId}"]`).classList.add('active');
+        const activeLink = document.querySelector(`.sidebar-link[onclick*="${viewId}"]`);
+        if (activeLink) activeLink.classList.add('active');
         const renderMap = { 'dashboard-view': renderDashboardView, 'central-admin-view': renderCentralAdminView, 'godown-to-warehouse-view': renderGodownToWarehouseView, 'warehouse-to-cityhub-view': renderWarehouseToCityHubView, 'cityhub-to-fps-view': renderCityHubToFPSView, 'beneficiary-view': renderBeneficiaryView, 'transaction-view': renderTransactionView, 'system-admin-view': renderSystemAdminView };
         if(renderMap[viewId]) renderMap[viewId]();
     }
@@ -860,7 +950,10 @@
             document.getElementById('c2f-from-select').addEventListener('change', renderCityHubToFPSView);
             document.getElementById('c2f-to-select').addEventListener('change', renderCityHubToFPSView);
             
-            showView('dashboard-view');
+            // Show first available view based on permissions
+            const firstPermission = userPermissions[0];
+            const viewToShow = firstPermission ? firstPermission + '-view' : 'beneficiary-view';
+            showView(viewToShow);
         });
     });
     </script>
