@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JustRation - PDS Supply Chain Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .sidebar-link {
+            transition: all 0.2s ease-in-out;
+        }
+        .sidebar-link.active, .sidebar-link:hover {
+            background-color: #4f46e5;
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.1);
+        }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .toast {
+            position: fixed; bottom: 20px; right: 20px; padding: 1rem 1.5rem;
+            border-radius: 0.5rem; color: white; z-index: 1000; opacity: 0;
+            transform: translateY(20px); transition: all 0.3s ease;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { background: linear-gradient(to right, #10b981, #34d399); }
+        .toast.error { background: linear-gradient(to right, #ef4444, #f87171); }
+        .toast.info { background: linear-gradient(to right, #3b82f6, #60a5fa); }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; }
+        ::-webkit-scrollbar-thumb { background: #a0aec0; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #718096; }
+        
+        .stat-card { transition: all 0.3s ease; }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); }
+    </style>
+</head>
+<body class="flex h-screen text-gray-800">
+
+    <aside class="w-20 lg:w-64 bg-white shadow-lg flex-shrink-0 flex flex-col">
+        <div class="h-20 flex items-center justify-center bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+            <i class="fas fa-cubes-stacked text-3xl lg:mr-3"></i>
+            <span class="text-2xl font-extrabold hidden lg:inline">JustRation</span>
+        </div>
+        <nav class="mt-8 flex-1">
+            <a onclick="showView('dashboard-view')" class="sidebar-link active flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+                <i class="fas fa-tachometer-alt w-6 text-center lg:mr-3"></i><span class="hidden lg:inline">Dashboard</span>
+            </a>
+            <a onclick="showView('central-admin-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+                <i class="fas fa-warehouse w-6 text-center lg:mr-3"></i><span class="hidden lg:inline">Central Stock</span>
+            </a>
+            <a onclick="showView('state-admin-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+                <i class="fas fa-truck-fast w-6 text-center lg:mr-3"></i><span class="hidden lg:inline">Dispatch</span>
+            </a>
+            <a onclick="showView('beneficiary-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+                <i class="fas fa-users w-6 text-center lg:mr-3"></i><span class="hidden lg:inline">Distribution</span>
+            </a>
+            <a onclick="showView('transaction-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+                <i class="fas fa-receipt w-6 text-center lg:mr-3"></i><span class="hidden lg:inline">Ledger</span>
+            </a>
+            <a onclick="showView('system-admin-view')" class="sidebar-link flex items-center justify-center lg:justify-start py-3 px-6 text-gray-600 font-semibold rounded-lg mx-2 lg:mx-4 my-1">
+                <i class="fas fa-cogs w-6 text-center lg:mr-3"></i><span class="hidden lg:inline">Administration</span>
+            </a>
+        </nav>
+    </aside>
+
+    <main class="flex-1 p-6 md:p-10 overflow-y-auto">
+        <div id="dashboard-view" class="view-content fade-in"></div>
+        <div id="central-admin-view" class="view-content hidden fade-in"></div>
+        <div id="state-admin-view" class="view-content hidden fade-in"></div>
+        <div id="beneficiary-view" class="view-content hidden fade-in"></div>
+        <div id="transaction-view" class="view-content hidden fade-in"></div>
+        <div id="system-admin-view" class="view-content hidden fade-in"></div>
+    </main>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="/script.js"></script>
+    <script>
+    let charts = {};
+    let db = {};
+    let isLoading = false;
+
+    async function loadDBFromFirebase() {
+        if (isLoading) return;
+        isLoading = true;
+        try {
+            const data = await fetchAllData();
+            if (data) {
+                db.locations = {};
+                db.beneficiaries = {};
+                db.grains = data.grains && Array.isArray(data.grains) 
+                    ? data.grains.map(g => g.name || g.id || g)
+                    : ['Wheat', 'Rice', 'Sugar'];
+                db.transactions = data.transactions || [];
+                
+                if (Array.isArray(data.locations)) {
+                    data.locations.forEach(loc => {
+                        db.locations[loc.id] = loc;
+                    });
+                }
+                
+                if (Array.isArray(data.beneficiaries)) {
+                    data.beneficiaries.forEach(ben => {
+                        db.beneficiaries[ben.id] = ben;
+                    });
+                }
+                
+                console.log('✓ Data loaded from Firebase:', db);
+            }
+        } catch (error) {
+            console.error('Error loading data from Firebase:', error);
+        }
+        isLoading = false;
+    }
+
+    function saveDB(data) {
+        // Data is automatically saved to Firebase via API endpoints
+        console.log('Data saved to Firebase');
+    }
+    
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast show ${type}`;
+        setTimeout(() => { toast.className = 'toast'; }, 3000);
+    }
+
+    function generateId(name) {
+        return name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36).slice(-4);
+    }
+    
+    function logAdminAction(action, details) {
+        db.transactions.unshift({
+            hash: `0x${Math.random().toString(36).substr(2, 10)}...${Math.random().toString(36).substr(2, 4)}`,
+            timestamp: new Date().toLocaleString(), from: 'System Admin', to: action, items: details, type: 'admin'
+        });
+    }
+
+    function addStock() {
+        const godownId = document.getElementById('central-godown-select').value;
+        const grain = document.getElementById('central-grain-select').value;
+        const quantity = parseInt(document.getElementById('central-quantity-input').value, 10);
+        if (!godownId || !grain || !quantity || quantity <= 0) { 
+            showToast('Please fill all fields with valid data.', 'error'); 
+            return; 
+        }
+        
+        addStockToFirebase(godownId, grain, quantity).then(result => {
+            if (result) {
+                document.getElementById('central-quantity-input').value = '';
+                renderCentralAdminView();
+                showToast(`${quantity.toLocaleString()} Kgs of ${grain} added to Firebase!`, 'success');
+                loadDBFromFirebase();
+            }
+        });
+    }
+
+    function dispatchConsignment() {
+        const fromId = document.getElementById('dist-from-select').value;
+        const toId = document.getElementById('dist-to-select').value;
+        const grainToDispatch = document.getElementById('dist-grain-select')?.value;
+        const quantityToDispatch = parseInt(document.getElementById('dist-quantity-input')?.value, 10);
+        if (!fromId || !toId) { showToast('Please select a valid source and destination.', 'error'); return; }
+        if (!grainToDispatch || !quantityToDispatch || quantityToDispatch <= 0) { showToast('Please select a grain and enter a valid quantity.', 'error'); return; }
+        
+        dispatchToFirebase(fromId, toId, grainToDispatch, quantityToDispatch).then(result => {
+            if (result && result.message === 'Consignment dispatched') {
+                showToast('Consignment dispatched and recorded in Firebase!', 'success');
+                renderStateAdminView();
+                loadDBFromFirebase();
+            } else if (result && result.message === 'Not enough stock') {
+                showToast('Not enough stock available', 'error');
+            }
+        });
+    }
+
+    function executeTransaction(fromId, toId, itemsToSend) {
+        const fromLocation = db.locations[fromId];
+        for (const grain in itemsToSend) {
+            if (itemsToSend[grain] > (fromLocation.stock[grain] || 0)) {
+                showToast(`Not enough stock for ${grain} at ${fromLocation.name}.`, 'error'); return false;
+            }
+        }
+        for (const grain in itemsToSend) {
+            fromLocation.stock[grain] -= itemsToSend[grain];
+            if (db.locations[toId]) {
+                 db.locations[toId].stock[grain] = (db.locations[toId].stock[grain] || 0) + itemsToSend[grain];
+            }
+        }
+        const toName = db.locations[toId] ? db.locations[toId].name : (db.beneficiaries[toId] ? `Beneficiary: ${db.beneficiaries[toId].name} (${toId})` : toId);
+        db.transactions.unshift({
+            hash: `0x${Math.random().toString(36).substr(2, 10)}...${Math.random().toString(36).substr(2, 4)}`,
+            timestamp: new Date().toLocaleString(), from: fromLocation.name, to: toName,
+            items: itemsToSend, type: 'transfer'
+        });
+        return true;
+    }
+
+    function registerBeneficiary() {
+        const name = document.getElementById('beneficiary-name').value.trim();
+        const rationCardId = document.getElementById('beneficiary-ration-id').value.trim().toUpperCase();
+        const fpsId = document.getElementById('beneficiary-reg-fps-select').value;
+        if (!name || !rationCardId || !fpsId) { showToast('Please fill all fields.', 'error'); return; }
+        
+        addBeneficiaryToFirebase(name, rationCardId, fpsId).then(result => {
+            if (result) {
+                showToast(`Beneficiary ${name} registered in Firebase!`, 'success');
+                document.getElementById('beneficiary-name').value = '';
+                document.getElementById('beneficiary-ration-id').value = '';
+                renderBeneficiaryView();
+                loadDBFromFirebase();
+            }
+        });
+    }
+
+    function distributeRation() {
+        const fpsId = document.getElementById('dist-fps-select').value;
+        const beneficiaryId = document.getElementById('dist-beneficiary-select').value;
+        const grainToDistribute = document.getElementById('beneficiary-grain-select')?.value;
+        const quantityToDistribute = parseInt(document.getElementById('beneficiary-quantity-input')?.value, 10);
+        if (!fpsId || !beneficiaryId) { showToast('Please select an FPS and a beneficiary.', 'error'); return; }
+        if (!grainToDistribute || !quantityToDistribute || quantityToDistribute <= 0) { showToast('Please select a grain and enter a valid quantity.', 'error'); return; }
+        
+        distributeToFirebase(fpsId, beneficiaryId, grainToDistribute, quantityToDistribute).then(result => {
+            if (result && result.message === 'Ration distributed') {
+                showToast(`Distributed and recorded in Firebase!`, 'success');
+                renderBeneficiaryView();
+                loadDBFromFirebase();
+            } else if (result && result.message === 'Not enough stock') {
+                showToast('Not enough stock at FPS', 'error');
+            }
+        });
+    }
+
+    function addGrain() {
+        const grainNameInput = document.getElementById('admin-grain-name');
+        const grainName = grainNameInput.value.trim();
+        if(!grainName) { showToast('Please enter a grain name.', 'error'); return; }
+        if(db.grains.map(g => g.toLowerCase()).includes(grainName.toLowerCase())) { showToast('This grain type already exists.', 'error'); return; }
+        
+        addGrainToFirebase(grainName, 'kg').then(result => {
+            if (result) {
+                showToast(`Grain type '${grainName}' added to Firebase!`, 'success');
+                grainNameInput.value = '';
+                loadDBFromFirebase().then(() => renderSystemAdminView());
+            }
+        });
+    }
+
+    function removeGrain(grainToRemove) {
+        if(confirm(`Are you sure you want to remove '${grainToRemove}'? This will not delete existing stock records.`)) {
+            removeGrainFromFirebase(grainToRemove).then(result => {
+                if (result) {
+                    showToast(`Grain type '${grainToRemove}' removed from Firebase!`, 'success');
+                    loadDBFromFirebase().then(() => renderSystemAdminView());
+                }
+            });
+        }
+    }
+
+    function addCentralGodown() {
+        const name = document.getElementById('admin-godown-name').value.trim();
+        if (!name) { showToast('Please enter a godown name.', 'error'); return; }
+        const id = generateId(name);
+        db.locations[id] = { name, type: 'godown', stock: {} };
+        logAdminAction('Create Godown', name);
+        saveDB(db);
+        showToast('Central Godown created.', 'success');
+        renderSystemAdminView();
+    }
+
+    function addStateWarehouse() {
+        const stateName = document.getElementById('admin-state-name').value.trim();
+        const warehouseName = document.getElementById('admin-warehouse-name').value.trim();
+        if (!stateName || !warehouseName) { showToast('Please provide both names.', 'error'); return; }
+        const id = generateId(warehouseName);
+        db.locations[id] = { name: warehouseName, type: 'warehouse', state: stateName, stock: {} };
+        logAdminAction('Create State Warehouse', `${warehouseName} [${stateName}]`);
+        saveDB(db);
+        showToast('State and Warehouse created.', 'success');
+        renderSystemAdminView();
+    }
+
+    function addCityHub() {
+        const state = document.getElementById('admin-city-state-select').value;
+        const hubName = document.getElementById('admin-hub-name').value.trim();
+        if (!state || !hubName) { showToast('Please select state and provide name.', 'error'); return; }
+        const cityName = hubName.split(' ')[0];
+        const id = generateId(hubName);
+        db.locations[id] = { name: hubName, type: 'city-hub', state, city: cityName, stock: {} };
+        logAdminAction('Create City Hub', `${hubName} [${state}]`);
+        saveDB(db);
+        showToast('City Hub created.', 'success');
+        renderSystemAdminView();
+    }
+    
+    function addFPS() {
+        const state = document.getElementById('admin-fps-state-select').value;
+        const city = document.getElementById('admin-fps-city-select').value;
+        const name = document.getElementById('admin-fps-name').value.trim();
+        if (!state || !city || !name) { showToast('Please complete all FPS fields.', 'error'); return; }
+        
+        const locId = `fps-${Date.now()}`;
+        addLocationToFirebase(locId, name, 'fps', state, city, {}).then(result => {
+            if (result) {
+                showToast('Fair Price Shop created in Firebase!', 'success');
+                document.getElementById('admin-fps-name').value = '';
+                loadDBFromFirebase().then(() => renderSystemAdminView());
+            }
+        });
+    }
+
+    function deleteLocation() {
+        const locationId = document.getElementById('admin-delete-select').value;
+        if (!locationId) { showToast('Please select a location to delete.', 'error'); return; }
+        const locationName = db.locations[locationId] ? db.locations[locationId].name : locationId;
+        if (confirm(`Are you sure you want to permanently delete "${locationName}"?`)) {
+            deleteLocationFromFirebase(locationId).then(result => {
+                if (result) {
+                    showToast('Location deleted from Firebase!', 'success');
+                    loadDBFromFirebase().then(() => {
+                        renderSystemAdminView();
+                        renderStateAdminView();
+                        renderBeneficiaryView();
+                    });
+                }
+            });
+        }
+    }
+
+    function exportData() {
+        const dataStr = JSON.stringify(db, null, 2);
+        const dataBlob = new Blob([dataStr], {type: "application/json"});
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.download = `justration_backup_${new Date().toISOString().slice(0,10)}.json`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+        showToast('Data exported successfully!', 'success');
+    }
+
+    function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedDb = JSON.parse(e.target.result);
+                if (importedDb.locations && importedDb.beneficiaries && importedDb.grains && importedDb.transactions) {
+                    db = importedDb;
+                    saveDB(db);
+                    showToast('Data imported successfully!', 'success');
+                    showView(document.querySelector('.sidebar-link.active').getAttribute('onclick').match(/'(.*?)'/)[1]);
+                } else {
+                    showToast('Invalid data file format.', 'error');
+                }
+            } catch (error) {
+                showToast('Error reading or parsing file.', 'error');
+            }
+        };
+        reader.readAsText(file);
+    }
+    
+    function renderDashboardView() {
+        const totalStock = Object.values(db.locations).reduce((acc, loc) => acc + Object.values(loc.stock).reduce((s, q) => s + q, 0), 0);
+        const totalBeneficiaries = Object.keys(db.beneficiaries).length;
+        const totalTransactions = db.transactions.length;
+        const grainStock = db.grains.map(grain => Object.values(db.locations).reduce((sum, loc) => sum + (loc.stock[grain] || 0), 0));
+        if (charts.grainStockChart) charts.grainStockChart.destroy();
+        const ctxGrain = document.getElementById('grainStockChart').getContext('2d');
+        charts.grainStockChart = new Chart(ctxGrain, {
+            type: 'doughnut',
+            data: {
+                labels: db.grains,
+                datasets: [{
+                    label: 'Stock (Kgs)',
+                    data: grainStock,
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'],
+                    borderColor: '#ffffff',
+                    borderWidth: 4
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'right' } } }
+        });
+        document.getElementById('total-stock').textContent = totalStock.toLocaleString() + ' Kgs';
+        document.getElementById('total-beneficiaries').textContent = totalBeneficiaries;
+        document.getElementById('total-transactions').textContent = totalTransactions;
+    }
+
+    function renderCentralAdminView() {
+        document.getElementById('central-godown-select').innerHTML = Object.entries(db.locations).filter(([_, loc]) => loc.type === 'godown').map(([id, loc]) => `<option value="${id}">${loc.name}</option>`).join('');
+        document.getElementById('central-grain-select').innerHTML = db.grains.map(g => `<option value="${g}">${g}</option>`).join('');
+        document.getElementById('central-inventory-display').innerHTML = Object.entries(db.locations).map(([id, loc]) => {
+            const stockList = db.grains.map(grain => `<li>${grain}: <strong>${(loc.stock[grain] || 0).toLocaleString()} Kgs</strong></li>`).join('');
+            return `<div class="p-4 bg-gray-50 rounded-lg border"><h5 class="font-bold text-gray-700">${loc.name} (${loc.state || 'Central'})</h5><ul class="list-disc pl-5 mt-2 text-sm space-y-1">${stockList || '<li>Empty</li>'}</ul></div>`;
+        }).join('');
+    }
+
+    function renderStateAdminView() {
+        const fromSelect = document.getElementById('dist-from-select'), toSelect = document.getElementById('dist-to-select');
+        const stockDisplay = document.getElementById('dist-stock-display'), grainAndQtyDiv = document.getElementById('dist-grain-and-quantity');
+        const selectedFromId = fromSelect.value, selectedToId = toSelect.value;
+        const allLocations = Object.entries(db.locations);
+        fromSelect.innerHTML = '<option value="">-- Select Source --</option>' + allLocations
+            .filter(([_, loc]) => loc.type !== 'fps').map(([id, loc]) => `<option value="${id}">${loc.name} [${loc.type}]</option>`).join('');
+        if (allLocations.some(([id]) => id === selectedFromId)) fromSelect.value = selectedFromId;
+        let validDests = [];
+        if (selectedFromId) {
+            const from = db.locations[selectedFromId];
+            if (from.type === 'godown') validDests = allLocations.filter(([_, loc]) => loc.type === 'warehouse');
+            else if (from.type === 'warehouse') validDests = allLocations.filter(([_, loc]) => loc.type === 'city-hub' && from.state === loc.state);
+            else if (from.type === 'city-hub') validDests = allLocations.filter(([_, loc]) => loc.type === 'fps' && from.city === loc.city);
+        }
+        toSelect.innerHTML = validDests.length > 0 ? '<option value="">-- Select Destination --</option>' + validDests.map(([id, loc]) => `<option value="${id}">${loc.name}</option>`).join('') : '<option value="">-- No valid destinations --</option>';
+        if(validDests.some(([id]) => id === selectedToId)) toSelect.value = selectedToId;
+        stockDisplay.innerHTML = selectedFromId ? (db.grains.map(g => `<div>${g}: <strong>${(db.locations[selectedFromId].stock[g] || 0).toLocaleString()} Kgs</strong></div>`).join('') || '<p>This location is empty.</p>') : 'Select a source.';
+        if (selectedFromId && selectedToId) {
+            const sourceStock = db.locations[selectedFromId].stock;
+            const grainOptions = db.grains.map(grain => `<option value="${grain}">${grain} (${(sourceStock[grain] || 0).toLocaleString()} Kgs)</option>`).join('');
+            grainAndQtyDiv.innerHTML = `<div><label class="block text-sm font-medium text-gray-700">Select Grain</label><select id="dist-grain-select" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">${grainOptions}</select></div><div><label class="block text-sm font-medium text-gray-700">Quantity to Send</label><input type="number" id="dist-quantity-input" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2" placeholder="e.g., 500"></div>`;
+        } else { grainAndQtyDiv.innerHTML = 'Select source and destination first.'; }
+    }
+    
+    function renderBeneficiaryView() {
+        const allFpsLocations = Object.entries(db.locations).filter(([_, loc]) => loc.type === 'fps');
+        const regStateSelect = document.getElementById('beneficiary-reg-state-select');
+        const regCitySelect = document.getElementById('beneficiary-reg-city-select');
+        const regFpsSelect = document.getElementById('beneficiary-reg-fps-select');
+        const selectedRegState = regStateSelect.value;
+        const selectedRegCity = regCitySelect.value;
+        const statesWithFps = [...new Set(allFpsLocations.map(([id, loc]) => loc.state))].sort();
+        regStateSelect.innerHTML = '<option value="">-- Select State --</option>' + statesWithFps.map(s => `<option value="${s}" ${s === selectedRegState ? 'selected' : ''}>${s}</option>`).join('');
+        if (selectedRegState) {
+            const citiesInState = [...new Set(allFpsLocations.filter(([id, loc]) => loc.state === selectedRegState).map(([id, loc]) => loc.city))].sort();
+            regCitySelect.innerHTML = '<option value="">-- Select City --</option>' + citiesInState.map(c => `<option value="${c}" ${c === selectedRegCity ? 'selected' : ''}>${c}</option>`).join('');
+            regCitySelect.disabled = false;
+        } else {
+            regCitySelect.innerHTML = '<option value="">-- Select State First --</option>';
+            regCitySelect.disabled = true;
+            regFpsSelect.innerHTML = '<option value="">-- Select City First --</option>';
+            regFpsSelect.disabled = true;
+        }
+        if (selectedRegState && selectedRegCity) {
+            const fpsInCity = allFpsLocations.filter(([id, loc]) => loc.state === selectedRegState && loc.city === selectedRegCity);
+            regFpsSelect.innerHTML = '<option value="">-- Select FPS --</option>' + fpsInCity.map(([id, loc]) => `<option value="${id}">${loc.name}</option>`).join('');
+            regFpsSelect.disabled = false;
+        } else {
+            regFpsSelect.innerHTML = '<option value="">-- Select City First --</option>';
+            regFpsSelect.disabled = true;
+        }
+
+        const distStateSelect = document.getElementById('dist-state-select');
+        const distCitySelect = document.getElementById('dist-city-select');
+        const distFpsSelect = document.getElementById('dist-fps-select');
+        const beneficiarySelect = document.getElementById('dist-beneficiary-select');
+        const distributionInputs = document.getElementById('beneficiary-distribution-inputs');
+        const fpsStockDisplay = document.getElementById('dist-fps-stock-display');
+        const selectedDistState = distStateSelect.value;
+        const selectedDistCity = distCitySelect.value;
+        const selectedDistFpsId = distFpsSelect.value;
+        const selectedBeneficiaryId = beneficiarySelect.value;
+
+        distStateSelect.innerHTML = '<option value="">-- Select State --</option>' + statesWithFps.map(s => `<option value="${s}" ${s === selectedDistState ? 'selected' : ''}>${s}</option>`).join('');
+        if (selectedDistState) {
+            const citiesInState = [...new Set(allFpsLocations.filter(([id, loc]) => loc.state === selectedDistState).map(([id, loc]) => loc.city))].sort();
+            distCitySelect.innerHTML = '<option value="">-- Select City --</option>' + citiesInState.map(c => `<option value="${c}" ${c === selectedDistCity ? 'selected' : ''}>${c}</option>`).join('');
+            distCitySelect.disabled = false;
+        } else {
+            distCitySelect.innerHTML = '<option value="">-- Select State First --</option>';
+            distCitySelect.disabled = true;
+            distFpsSelect.innerHTML = '<option value="">-- Select City First --</option>';
+            distFpsSelect.disabled = true;
+        }
+        if (selectedDistState && selectedDistCity) {
+             const fpsInCity = allFpsLocations.filter(([id, loc]) => loc.state === selectedDistState && loc.city === selectedDistCity);
+            distFpsSelect.innerHTML = '<option value="">-- Select FPS --</option>' + fpsInCity.map(([id, loc]) => `<option value="${id}" ${id === selectedDistFpsId ? 'selected' : ''}>${loc.name}</option>`).join('');
+            distFpsSelect.disabled = false;
+        } else {
+            distFpsSelect.innerHTML = '<option value="">-- Select City First --</option>';
+            distFpsSelect.disabled = true;
+        }
+        if (selectedDistFpsId) {
+            const bens = Object.values(db.beneficiaries).filter(b => b.fpsId === selectedDistFpsId);
+            beneficiarySelect.innerHTML = '<option value="">-- Select Beneficiary --</option>' + bens.map(b => `<option value="${b.rationCardId}" ${b.rationCardId === selectedBeneficiaryId ? 'selected': ''}>${b.name} (${b.rationCardId})</option>`).join('');
+            beneficiarySelect.disabled = false;
+            const stock = db.locations[selectedDistFpsId].stock;
+            fpsStockDisplay.innerHTML = db.grains.map(g => `<div>${g}: <strong>${(stock[g] || 0).toLocaleString()} Kgs</strong></div>`).join('') || 'Empty';
+        } else {
+            beneficiarySelect.innerHTML = '<option value="">-- Select FPS first --</option>';
+            beneficiarySelect.disabled = true;
+            fpsStockDisplay.innerHTML = 'Select an FPS to see stock.';
+        }
+        if (selectedBeneficiaryId && selectedDistFpsId) {
+            const ben = db.beneficiaries[selectedBeneficiaryId];
+            const fpsStock = db.locations[selectedDistFpsId].stock;
+            const availableGrains = Object.keys(ben.entitlement).filter(g => (fpsStock[g] || 0) > 0);
+            if(availableGrains.length > 0) {
+                const grainOptions = availableGrains.map(g => `<option value="${g}">${g} (Available: ${fpsStock[g]} Kgs)</option>`).join('');
+                distributionInputs.innerHTML = `<div><label class="block text-sm font-medium text-gray-700">Select Grain</label><select id="beneficiary-grain-select" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2">${grainOptions}</select></div><div><label class="block text-sm font-medium text-gray-700">Quantity (Max: 10 Kgs)</label><input type="number" id="beneficiary-quantity-input" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2" placeholder="e.g., 5" max="10"></div>`;
+            } else { distributionInputs.innerHTML = '<div class="text-sm text-gray-600">FPS has no stock matching beneficiary entitlement.</div>'; }
+        } else { distributionInputs.innerHTML = '<div class="text-sm text-gray-600">Select beneficiary and FPS.</div>'; }
+    }
+
+    function renderTransactionView() {
+        document.getElementById('ledger-transaction-history-body').innerHTML = db.transactions.map(tx => {
+            let rowClass = '', itemsHtml = '';
+            if (tx.type === 'admin') {
+                rowClass = 'bg-yellow-50'; itemsHtml = `<div class="font-semibold text-gray-600">${tx.items}</div>`;
+            } else {
+                if (tx.from === 'Govt. Procurement') rowClass = 'bg-green-50';
+                if (tx.to.startsWith('Beneficiary')) rowClass = 'bg-blue-50';
+                itemsHtml = Object.entries(tx.items).map(([g, q]) => `<div>${g}: ${q.toLocaleString()} Kgs</div>`).join('');
+            }
+            return `<tr class="border-b ${rowClass}"><td class="py-3 px-4 font-mono text-xs">${tx.hash}</td><td class="py-3 px-4 text-sm">${tx.timestamp}</td><td class="py-3 px-4 text-sm">${tx.from}</td><td class="py-3 px-4 text-sm">${tx.to}</td><td class="py-3 px-4 text-sm">${itemsHtml}</td></tr>`;
+        }).join('');
+    }
+    
+    function renderSystemAdminView() {
+        ['admin-godown-name', 'admin-state-name', 'admin-warehouse-name', 'admin-hub-name', 'admin-fps-name', 'admin-grain-name'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+        });
+        document.getElementById('admin-grain-list').innerHTML = db.grains.map(g => `<div class="flex justify-between items-center bg-white p-2 rounded-md"><span>${g}</span><button onclick="removeGrain('${g}')" class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i></button></div>`).join('');
+        const allLocs = Object.values(db.locations);
+        const states = [...new Set(allLocs.filter(l => l.state).map(l => l.state))].sort();
+        const stateOpts = states.map(s => `<option value="${s}">${s}</option>`).join('');
+        document.getElementById('admin-city-state-select').innerHTML = '<option value="">-- Select State --</option>' + stateOpts;
+        document.getElementById('admin-fps-state-select').innerHTML = '<option value="">-- Select State --</option>' + stateOpts;
+        const fpsStateSelect = document.getElementById('admin-fps-state-select'), fpsCitySelect = document.getElementById('admin-fps-city-select');
+        fpsStateSelect.onchange = () => {
+            const cities = [...new Set(allLocs.filter(l => l.state === fpsStateSelect.value && l.city).map(l => l.city))].sort();
+            fpsCitySelect.innerHTML = '<option value="">-- Select City --</option>' + cities.map(c => `<option value="${c}">${c}</option>`).join('');
+        };
+        fpsStateSelect.dispatchEvent(new Event('change'));
+        document.getElementById('admin-fps-demand-inputs').innerHTML = db.grains.map(g => `<div class="flex items-center text-sm"><label class="w-1/3">${g}</label><input type="number" data-grain="${g}" class="fps-demand-input w-2/3 border-gray-300 rounded-md p-1" placeholder="Kgs"></div>`).join('');
+        const deletable = Object.entries(db.locations).filter(([_, loc]) => loc.type !== 'godown');
+        document.getElementById('admin-delete-select').innerHTML = '<option value="">-- Select Location --</option>' + deletable.map(([id, loc]) => `<option value="${id}">${loc.name} (${loc.type})</option>`).join('');
+    }
+
+    function showView(viewId) {
+        document.querySelectorAll('.view-content').forEach(v => v.classList.add('hidden'));
+        document.getElementById(viewId).classList.remove('hidden');
+        document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
+        document.querySelector(`.sidebar-link[onclick*="${viewId}"]`).classList.add('active');
+        const renderMap = { 'dashboard-view': renderDashboardView, 'central-admin-view': renderCentralAdminView, 'state-admin-view': renderStateAdminView, 'beneficiary-view': renderBeneficiaryView, 'transaction-view': renderTransactionView, 'system-admin-view': renderSystemAdminView };
+        if(renderMap[viewId]) renderMap[viewId]();
+    }
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        const viewTemplates = {
+            'dashboard-view': `<h1 class="text-4xl font-extrabold text-gray-800 mb-8">Dashboard</h1><div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="stat-card bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-500"><h2 class="text-gray-500 text-lg font-semibold">Total Stock</h2><p id="total-stock" class="text-4xl font-bold mt-2">0 Kgs</p></div><div class="stat-card bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500"><h2 class="text-gray-500 text-lg font-semibold">Registered Beneficiaries</h2><p id="total-beneficiaries" class="text-4xl font-bold mt-2">0</p></div><div class="stat-card bg-white p-6 rounded-xl shadow-md border-l-4 border-yellow-500"><h2 class="text-gray-500 text-lg font-semibold">Total Transactions</h2><p id="total-transactions" class="text-4xl font-bold mt-2">0</p></div></div><div class="grid grid-cols-1 lg:grid-cols-5 gap-6"><div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md"><h2 class="text-xl font-bold mb-4">Stock Distribution</h2><canvas id="grainStockChart"></canvas></div><div class="lg:col-span-3 bg-white p-6 rounded-xl shadow-md"><h2 class="text-xl font-bold mb-4">Quick Actions</h2><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><button onclick="showView('central-admin-view')" class="p-6 bg-blue-50 text-blue-700 font-bold rounded-lg hover:bg-blue-100 transition duration-300"><i class="fas fa-plus-circle text-3xl mb-2"></i><br>Add New Stock</button><button onclick="showView('state-admin-view')" class="p-6 bg-green-50 text-green-700 font-bold rounded-lg hover:bg-green-100 transition duration-300"><i class="fas fa-truck-fast text-3xl mb-2"></i><br>Dispatch Goods</button><button onclick="showView('beneficiary-view')" class="p-6 bg-indigo-50 text-indigo-700 font-bold rounded-lg hover:bg-indigo-100 transition duration-300"><i class="fas fa-user-plus text-3xl mb-2"></i><br>Register Beneficiary</button><button onclick="showView('transaction-view')" class="p-6 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 transition duration-300"><i class="fas fa-receipt text-3xl mb-2"></i><br>View Full Ledger</button></div></div></div>`,
+            'central-admin-view': `<div class="bg-white rounded-xl shadow-lg p-6 md:p-8 max-w-2xl mx-auto"><h2 class="text-3xl font-bold text-gray-800 mb-6">Add Stock to Central Godown</h2><div class="space-y-4"><div><label for="central-godown-select" class="block text-sm font-medium text-gray-700">Select Godown</label><select id="central-godown-select" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-3"></select></div><div><label for="central-grain-select" class="block text-sm font-medium text-gray-700">Grain Type</label><select id="central-grain-select" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-3"></select></div><div><label for="central-quantity-input" class="block text-sm font-medium text-gray-700">Quantity (Kgs)</label><input type="number" id="central-quantity-input" placeholder="e.g., 50000" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-3"></div><button onclick="addStock()" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300 text-lg"><i class="fas fa-plus-circle mr-2"></i>Add Stock & Record</button></div><div class="mt-10"><h3 class="text-2xl font-semibold text-gray-700 mb-4">Current Inventories</h3><div id="central-inventory-display" class="space-y-3"></div></div></div>`,
+            'state-admin-view': `<div class="bg-white rounded-xl shadow-lg p-6 md:p-8"><h2 class="text-3xl font-bold text-gray-800 mb-6">Hierarchical Stock Transfer</h2><p class="text-gray-600 mb-6 -mt-4">Transfers follow a strict hierarchy: <b>Godown &rarr; Warehouse &rarr; City Hub &rarr; FPS</b>.</p><div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div><label for="dist-from-select" class="block text-lg font-semibold text-gray-700">1. Select Source</label><select id="dist-from-select" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-3"></select><div class="mt-4 bg-gray-50 p-4 rounded-lg border"><h4 class="font-semibold mb-2">Available Stock:</h4><div id="dist-stock-display" class="space-y-1 text-sm">Select a source to see stock.</div></div></div><div><label for="dist-to-select" class="block text-lg font-semibold text-gray-700">2. Select Destination</label><select id="dist-to-select" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-3"></select><div id="dispatch-area" class="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-200"><h4 class="font-semibold mb-2 text-blue-800">3. Select Grain and Quantity to Send</h4><div id="dist-grain-and-quantity" class="space-y-3">Select source and destination first.</div></div></div></div><div class="mt-6"><button onclick="dispatchConsignment()" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition duration-300 text-lg"><i class="fas fa-truck-fast mr-2"></i>Dispatch</button></div></div>`,
+            'beneficiary-view': `<div class="space-y-8"><div class="bg-white rounded-xl shadow-lg p-6 md:p-8"><h2 class="text-3xl font-bold text-gray-800 mb-6">Register New Beneficiary</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label class="font-semibold text-gray-600">Beneficiary Name</label><input id="beneficiary-name" type="text" placeholder="e.g., Ram Kumar" class="w-full border-gray-300 rounded-md p-3 mt-1"></div><div><label class="font-semibold text-gray-600">Ration Card ID</label><input id="beneficiary-ration-id" type="text" placeholder="Unique ID (e.g., RJ20241234)" class="w-full border-gray-300 rounded-md p-3 mt-1"></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6"><div><label class="font-semibold text-gray-600">State</label><select id="beneficiary-reg-state-select" class="w-full border-gray-300 rounded-md p-3 mt-1"></select></div><div><label class="font-semibold text-gray-600">City</label><select id="beneficiary-reg-city-select" class="w-full border-gray-300 rounded-md p-3 mt-1" disabled></select></div><div><label class="font-semibold text-gray-600">Assign to FPS</label><select id="beneficiary-reg-fps-select" class="w-full border-gray-300 rounded-md p-3 mt-1" disabled></select></div></div><button onclick="registerBeneficiary()" class="w-full mt-6 bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 text-lg"><i class="fas fa-user-plus mr-2"></i>Register Beneficiary</button></div><div class="bg-white rounded-xl shadow-lg p-6 md:p-8"><h2 class="text-3xl font-bold text-gray-800 mb-6">Distribute Rations to Beneficiary</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div><h3 class="text-lg font-semibold text-gray-700 mb-2">1. Select Location & Beneficiary</h3><div class="space-y-4"><div><label class="font-semibold text-gray-600 text-sm">State</label><select id="dist-state-select" class="w-full border-gray-300 rounded-md p-3 mt-1"></select></div><div><label class="font-semibold text-gray-600 text-sm">City</label><select id="dist-city-select" class="w-full border-gray-300 rounded-md p-3 mt-1" disabled></select></div><div><label class="font-semibold text-gray-600 text-sm">FPS</label><select id="dist-fps-select" class="w-full border-gray-300 rounded-md p-3 mt-1" disabled></select></div><div><label class="font-semibold text-gray-600 text-sm">Beneficiary</label><select id="dist-beneficiary-select" class="w-full border-gray-300 rounded-md p-3 mt-1" disabled></select></div></div></div><div><h3 class="text-lg font-semibold text-gray-700 mb-2">2. Available Stock & Distribution</h3><div class="mt-4 bg-gray-50 p-4 rounded-lg border h-32 overflow-y-auto"><h4 class="font-semibold mb-2">FPS Stock:</h4><div id="dist-fps-stock-display" class="space-y-1 text-sm">Select an FPS to see stock.</div></div><div class="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-200"><h4 class="font-semibold mb-2 text-blue-800">3. Select Grain and Quantity</h4><div id="beneficiary-distribution-inputs" class="space-y-3">Select a beneficiary to see their ration.</div></div></div></div><div class="mt-6"><button onclick="distributeRation()" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition duration-300 text-lg"><i class="fas fa-hand-holding-heart mr-2"></i>Distribute Ration & Record</button></div></div></div>`,
+            'transaction-view': `<div class="bg-white rounded-xl shadow-lg p-6 md:p-8"><h2 class="text-3xl font-bold text-gray-800 mb-6">Blockchain Transaction Ledger</h2><p class="text-gray-600 mb-6 -mt-4">Complete, immutable history of all stock movements and administrative actions.</p><div class="overflow-x-auto"><table class="min-w-full bg-white"><thead><tr class="bg-gray-50"><th class="text-left py-3 px-4 font-semibold text-sm text-gray-600 uppercase tracking-wider">Txn Hash</th><th class="text-left py-3 px-4 font-semibold text-sm text-gray-600 uppercase tracking-wider">Timestamp</th><th class="text-left py-3 px-4 font-semibold text-sm text-gray-600 uppercase tracking-wider">From / Actor</th><th class="text-left py-3 px-4 font-semibold text-sm text-gray-600 uppercase tracking-wider">To / Action</th><th class="text-left py-3 px-4 font-semibold text-sm text-gray-600 uppercase tracking-wider">Items / Details</th></tr></thead><tbody id="ledger-transaction-history-body" class="text-gray-700"></tbody></table></div></div>`,
+            'system-admin-view': `<div class="space-y-8"><div class="bg-white rounded-xl shadow-lg p-6 md:p-8"><h2 class="text-3xl font-bold text-gray-800 mb-6">Data Management</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div class="bg-gray-50 p-6 rounded-lg border"><h3 class="text-xl font-bold mb-3 text-gray-700">Export Data</h3><p class="text-sm text-gray-600 mb-4">Save all current data to a JSON file as a backup.</p><button onclick="exportData()" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Export to File</button></div><div class="bg-gray-50 p-6 rounded-lg border"><h3 class="text-xl font-bold mb-3 text-gray-700">Import Data</h3><p class="text-sm text-gray-600 mb-4">Load data from a JSON file. This will overwrite current data.</p><input type="file" id="import-file-input" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" onchange="importData(event)"/></div></div></div><div class="bg-white rounded-xl shadow-lg p-6 md:p-8"><h2 class="text-3xl font-bold text-gray-800 mb-6">Manage Grain Types</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-8"><div class="bg-gray-50 p-6 rounded-lg border"><h3 class="text-xl font-bold mb-3 text-gray-700">Add New Grain</h3><div class="flex items-center space-x-2"><input type="text" id="admin-grain-name" placeholder="e.g., Millet" class="w-full border-gray-300 rounded-md p-2"><button onclick="addGrain()" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition"><i class="fas fa-plus mr-2"></i>Add</button></div></div><div class="bg-gray-50 p-6 rounded-lg border"><h3 class="text-xl font-bold mb-3 text-gray-700">Current Grains</h3><div id="admin-grain-list" class="space-y-2"></div></div></div></div><div class="bg-white rounded-xl shadow-lg p-6 md:p-8"><h2 class="text-3xl font-bold text-gray-800 mb-6">Create New Locations</h2><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"><div class="bg-gray-50 p-6 rounded-lg border"><h3 class="text-lg font-bold mb-3 text-gray-700">1. Add State & Warehouse</h3><input type="text" id="admin-state-name" placeholder="New State Name" class="w-full border-gray-300 rounded-md p-2 mb-2"><input type="text" id="admin-warehouse-name" placeholder="Warehouse Name" class="w-full border-gray-300 rounded-md p-2 mb-3"><button onclick="addStateWarehouse()" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus mr-2"></i>Create State</button></div><div class="bg-gray-50 p-6 rounded-lg border"><h3 class="text-lg font-bold mb-3 text-gray-700">2. Add City Hub</h3><select id="admin-city-state-select" class="w-full border-gray-300 rounded-md p-2 mb-2"></select><input type="text" id="admin-hub-name" placeholder="City Hub Name" class="w-full border-gray-300 rounded-md p-2 mb-3"><button onclick="addCityHub()" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus mr-2"></i>Create Hub</button></div><div class="bg-gray-50 p-6 rounded-lg border"><h3 class="text-lg font-bold mb-3 text-gray-700">Add Central Godown</h3><input type="text" id="admin-godown-name" placeholder="e.g., FCI Central" class="w-full border-gray-300 rounded-md p-2 mb-3"><button onclick="addCentralGodown()" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition"><i class="fas fa-plus mr-2"></i>Create Godown</button></div></div></div><div class="bg-white rounded-xl shadow-lg p-6 md:p-8"><h2 class="text-3xl font-bold text-gray-800 mb-6">Create Fair Price Shop (FPS)</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div><label class="font-semibold text-gray-600">1. Select State & City</label><select id="admin-fps-state-select" class="w-full border-gray-300 rounded-md p-2 mt-1 mb-2"></select><select id="admin-fps-city-select" class="w-full border-gray-300 rounded-md p-2 mt-1"></select></div><div><label class="font-semibold text-gray-600">2. Enter FPS Details</label><input type="text" id="admin-fps-name" placeholder="FPS Name" class="w-full border-gray-300 rounded-md p-2 mt-1"></div><div><label class="font-semibold text-gray-600">3. Set Monthly Demand (Kgs)</label><div id="admin-fps-demand-inputs" class="space-y-1 mt-1"></div></div></div><button onclick="addFPS()" class="w-full mt-6 bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition text-lg"><i class="fas fa-store mr-2"></i>Create FPS</button></div><div class="bg-white rounded-xl shadow-lg p-6 md:p-8"><h2 class="text-3xl font-bold text-red-700 mb-6">Delete Location</h2><p class="text-gray-600 mb-4 -mt-4">Warning: Deleting a location is permanent. Central Godowns cannot be deleted.</p><div class="flex items-center space-x-4"><select id="admin-delete-select" class="w-full border-gray-300 rounded-md p-3"></select><button onclick="deleteLocation()" class="bg-red-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-700 transition"><i class="fas fa-trash-alt mr-2"></i>Delete</button></div></div></div>`
+        };
+        for (const viewId in viewTemplates) {
+            if (document.getElementById(viewId)) {
+                document.getElementById(viewId).innerHTML = viewTemplates[viewId];
+            }
+        }
+        
+        // Load data from Firebase on page load
+        loadDBFromFirebase().then(() => {
+            document.getElementById('beneficiary-reg-state-select').addEventListener('change', renderBeneficiaryView);
+            document.getElementById('beneficiary-reg-city-select').addEventListener('change', renderBeneficiaryView);
+            document.getElementById('dist-state-select').addEventListener('change', renderBeneficiaryView);
+            document.getElementById('dist-city-select').addEventListener('change', renderBeneficiaryView);
+            document.getElementById('dist-fps-select').addEventListener('change', renderBeneficiaryView);
+            document.getElementById('dist-beneficiary-select').addEventListener('change', renderBeneficiaryView);
+            document.getElementById('dist-from-select').addEventListener('change', renderStateAdminView);
+            document.getElementById('dist-to-select').addEventListener('change', renderStateAdminView);
+            
+            showView('dashboard-view');
+        });
+    });
+    </script>
+</body>
+</html>
+
