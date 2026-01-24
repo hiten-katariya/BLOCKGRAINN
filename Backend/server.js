@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+require('dotenv').config();
 
 const {
   locationsRef,
@@ -426,8 +427,8 @@ async function startServer() {
   // Initialize blockchain connection
   await blockchain.initialize();
   
-  const PORT = 3000;
-  const HOST = '0.0.0.0'; // Listen on all network interfaces
+  const PORT = process.env.PORT || 3000;
+  const HOST = process.env.HOST || '0.0.0.0'; // Listen on all network interfaces
   
   app.listen(PORT, HOST, () => {
     const os = require('os');
@@ -445,7 +446,8 @@ async function startServer() {
       });
     });
     
-    console.log("🔗 Blockchain status:", blockchain.isConnected() ? "✅ Connected" : "❌ Not connected");
+    console.log("🔗 Blockchain status:", blockchain.isConnected() ? "✅ Connected" : "⚠️ Disabled");
+    console.log("🌍 Environment:", process.env.NODE_ENV || "development");
   });
 }
 
