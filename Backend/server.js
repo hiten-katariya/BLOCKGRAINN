@@ -31,6 +31,10 @@ app.get("/test", (req, res) => {
   res.render("test"); // views/test.ejs
 });
 
+app.get("/init", (req, res) => {
+  res.render("init"); // views/init.ejs - Database initialization page
+});
+
 app.get("/login", (req, res) => {
   res.render("login"); // views/login.ejs
 });
@@ -420,6 +424,31 @@ app.post("/api/delete-location", async (req, res) => {
   });
   
   res.json({ message: "Location deleted successfully" });
+});
+
+/* INITIALIZE DATABASE - For Render.com deployment */
+app.post("/api/init-database", async (req, res) => {
+  try {
+    console.log("🔄 Starting database initialization...");
+    
+    // Run the initialization script
+    const { exec } = require('child_process');
+    exec('node initData.js', { cwd: __dirname }, (error, stdout, stderr) => {
+      if (error) {
+        console.error("❌ Init error:", error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      console.log(stdout);
+      res.json({ 
+        success: true, 
+        message: "Database initialized successfully",
+        output: stdout
+      });
+    });
+  } catch (error) {
+    console.error("❌ Database initialization failed:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 /* ============ START SERVER ============ */

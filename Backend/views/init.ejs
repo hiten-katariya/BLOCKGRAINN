@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Initialization - JustRation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">🔧 Database Initialization</h1>
+        
+        <div class="mb-6">
+            <p class="text-gray-600 mb-4">Click the button below to initialize the database with sample PDS data.</p>
+            <p class="text-sm text-yellow-600 mb-4">⚠️ This should only be run once when deploying to a new environment (like Render.com)</p>
+        </div>
+
+        <button 
+            onclick="initializeDatabase()" 
+            id="initBtn"
+            class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition duration-300 text-lg">
+            🚀 Initialize Database
+        </button>
+
+        <div id="result" class="mt-6 hidden"></div>
+        
+        <div id="loading" class="mt-6 hidden">
+            <div class="flex items-center justify-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span class="ml-3 text-gray-600">Initializing database...</span>
+            </div>
+        </div>
+
+        <div class="mt-8 p-4 bg-gray-50 rounded-lg">
+            <h3 class="font-semibold text-gray-700 mb-2">What will be created:</h3>
+            <ul class="text-sm text-gray-600 space-y-1">
+                <li>✅ 4 Central Godowns (with initial stock)</li>
+                <li>✅ 8 State Warehouses</li>
+                <li>✅ 16 City Hubs</li>
+                <li>✅ 16 Fair Price Shops</li>
+                <li>✅ 8 Sample Beneficiaries</li>
+                <li>✅ 3 Grain Types (Wheat, Rice, Sugar)</li>
+            </ul>
+        </div>
+
+        <div class="mt-6 text-center">
+            <a href="/login" class="text-blue-600 hover:underline">← Back to Login</a>
+        </div>
+    </div>
+
+    <script>
+        async function initializeDatabase() {
+            const btn = document.getElementById('initBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            loading.classList.remove('hidden');
+            result.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/init-database', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                loading.classList.add('hidden');
+                result.classList.remove('hidden');
+
+                if (data.success) {
+                    result.innerHTML = `
+                        <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <h3 class="text-green-800 font-bold text-lg mb-2">✅ Success!</h3>
+                            <p class="text-green-700 mb-4">${data.message}</p>
+                            <div class="text-sm text-green-600">
+                                <p>Database has been populated with:</p>
+                                <ul class="list-disc list-inside mt-2">
+                                    <li>4 Central Godowns</li>
+                                    <li>8 State Warehouses</li>
+                                    <li>16 City Hubs</li>
+                                    <li>16 Fair Price Shops</li>
+                                    <li>8 Beneficiaries</li>
+                                    <li>3 Grain Types</li>
+                                </ul>
+                            </div>
+                            <div class="mt-4">
+                                <a href="/login" class="inline-block bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition">
+                                    Go to Login →
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <h3 class="text-red-800 font-bold text-lg mb-2">❌ Error</h3>
+                            <p class="text-red-700">${data.error || 'Failed to initialize database'}</p>
+                            <button onclick="location.reload()" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+                                Try Again
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                loading.classList.add('hidden');
+                result.classList.remove('hidden');
+                result.innerHTML = `
+                    <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <h3 class="text-red-800 font-bold text-lg mb-2">❌ Error</h3>
+                        <p class="text-red-700">Network error: ${error.message}</p>
+                        <button onclick="location.reload()" class="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+                            Try Again
+                        </button>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    </script>
+</body>
+</html>
