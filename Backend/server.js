@@ -242,8 +242,17 @@ app.post("/api/distribute", async (req, res) => {
   fps.stock[grain] -= quantity;
   await fpsRef.update({ stock: fps.stock });
 
+  // Record on blockchain
+  const blockchainHash = await blockchain.recordTransaction(
+    fps.name,
+    `Beneficiary: ${ben.name}`,
+    grain,
+    quantity,
+    "transfer"
+  );
+
   await transactionsRef.add({
-    hash: "0x" + Date.now(),
+    hash: blockchainHash || "0x" + Date.now(),
     timestamp: new Date().toLocaleString(),
     from: fps.name,
     to: `Beneficiary: ${ben.name}`,
@@ -251,7 +260,10 @@ app.post("/api/distribute", async (req, res) => {
     type: "transfer"
   });
 
-  res.json({ message: "Ration distributed" });
+  res.json({ 
+    message: "Ration distributed",
+    blockchainHash: blockchainHash
+  });
 });
 
 /* ADD GRAIN */

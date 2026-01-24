@@ -463,56 +463,56 @@ await beneficiariesRef.doc("PB2026001").set({
   name:"Gurpreet Singh",
   rationCardId:"PB2026001",
   fpsId:"fps-punjab-amritsar-golden",
-  entitlement:{ Wheat:15, Rice:10, Sugar:2 }
+  entitlement:{ Wheat:100, Rice:100, Sugar:100 }
 });
 
 await beneficiariesRef.doc("HR2026001").set({
   name:"Rajesh Kumar",
   rationCardId:"HR2026001",
   fpsId:"fps-haryana-gurugram-sector",
-  entitlement:{ Wheat:15, Rice:10, Sugar:2 }
+  entitlement:{ Wheat:100, Rice:100, Sugar:100 }
 });
 
 await beneficiariesRef.doc("DL2026001").set({
   name:"Amit Sharma",
   rationCardId:"DL2026001",
   fpsId:"fps-delhi-central-cp",
-  entitlement:{ Wheat:15, Rice:10, Sugar:2 }
+  entitlement:{ Wheat:100, Rice:100, Sugar:100 }
 });
 
 await beneficiariesRef.doc("UP2026001").set({
   name:"Priya Verma",
   rationCardId:"UP2026001",
   fpsId:"fps-up-lucknow-hazrat",
-  entitlement:{ Wheat:15, Rice:10, Sugar:2 }
+  entitlement:{ Wheat:100, Rice:100, Sugar:100 }
 });
 
 await beneficiariesRef.doc("RJ2026001").set({
   name:"Manish Rathore",
   rationCardId:"RJ2026001",
   fpsId:"fps-rajasthan-jaipur-pink",
-  entitlement:{ Wheat:15, Rice:10, Sugar:2 }
+  entitlement:{ Wheat:100, Rice:100, Sugar:100 }
 });
 
 await beneficiariesRef.doc("MH2026001").set({
   name:"Sneha Patil",
   rationCardId:"MH2026001",
   fpsId:"fps-maharashtra-mumbai-dadar",
-  entitlement:{ Wheat:15, Rice:10, Sugar:2 }
+  entitlement:{ Wheat:100, Rice:100, Sugar:100 }
 });
 
 await beneficiariesRef.doc("WB2026001").set({
   name:"Soumya Chatterjee",
   rationCardId:"WB2026001",
   fpsId:"fps-wb-kolkata-park",
-  entitlement:{ Wheat:15, Rice:10, Sugar:2 }
+  entitlement:{ Wheat:100, Rice:100, Sugar:100 }
 });
 
 await beneficiariesRef.doc("GJ2026001").set({
   name:"Kiran Patel",
   rationCardId:"GJ2026001",
   fpsId:"fps-gujarat-ahmedabad-ellis",
-  entitlement:{ Wheat:15, Rice:10, Sugar:2 }
+  entitlement:{ Wheat:100, Rice:100, Sugar:100 }
 });
 
 /* ================= GRAINS ================= */

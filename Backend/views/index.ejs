@@ -370,13 +370,13 @@
             return; 
         }
         
-        // Validate against max allowed
+        // Validate against max allowed (capped at 100 kg per distribution)
         const ben = db.beneficiaries[beneficiaryId];
         const fpsStock = db.locations[fpsId].stock;
-        const maxAllowed = Math.min(ben.entitlement[grainToDistribute] || 0, fpsStock[grainToDistribute] || 0);
+        const maxAllowed = Math.min(ben.entitlement[grainToDistribute] || 0, fpsStock[grainToDistribute] || 0, 100);
         
         if (quantityToDistribute > maxAllowed) {
-            showToast(`Quantity exceeds maximum allowed (${maxAllowed} Kgs)`, 'error');
+            showToast(`Quantity exceeds maximum allowed (${maxAllowed} Kgs, max 100 Kgs per distribution)`, 'error');
             return;
         }
         
@@ -828,7 +828,7 @@
                 const grainOptions = availableGrains.map(g => {
                     const entitlement = ben.entitlement[g] || 0;
                     const available = fpsStock[g] || 0;
-                    const maxAllowed = Math.min(entitlement, available);
+                    const maxAllowed = Math.min(entitlement, available, 100);
                     return `<option value="${g}" data-max="${maxAllowed}">${g} (Entitlement: ${entitlement} Kgs, Available: ${available} Kgs)</option>`;
                 }).join('');
                 distributionInputs.innerHTML = `
@@ -840,8 +840,8 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Quantity</label>
-                        <input type="number" id="beneficiary-quantity-input" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2" placeholder="Enter quantity" min="1" max="${Math.min(ben.entitlement[availableGrains[0]] || 0, fpsStock[availableGrains[0]] || 0)}">
-                        <p class="text-xs text-gray-500 mt-1">Max: <span id="max-quantity-display">${Math.min(ben.entitlement[availableGrains[0]] || 0, fpsStock[availableGrains[0]] || 0)}</span> Kgs</p>
+                        <input type="number" id="beneficiary-quantity-input" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm p-2" placeholder="Enter quantity" min="1" max="${Math.min(ben.entitlement[availableGrains[0]] || 0, fpsStock[availableGrains[0]] || 0, 100)}">
+                        <p class="text-xs text-gray-500 mt-1">Max: <span id="max-quantity-display">${Math.min(ben.entitlement[availableGrains[0]] || 0, fpsStock[availableGrains[0]] || 0, 100)}</span> Kgs (Limit: 100 Kgs per distribution)</p>
                     </div>`;
                 updateMaxQuantity();
             } else { distributionInputs.innerHTML = '<div class="text-sm text-gray-600">FPS has no stock matching beneficiary entitlement.</div>'; }
