@@ -414,8 +414,25 @@ async function startServer() {
   // Initialize blockchain connection
   await blockchain.initialize();
   
-  app.listen(3000, () => {
-    console.log("🚀 Server running at http://localhost:3000");
+  const PORT = 3000;
+  const HOST = '0.0.0.0'; // Listen on all network interfaces
+  
+  app.listen(PORT, HOST, () => {
+    const os = require('os');
+    const networkInterfaces = os.networkInterfaces();
+    
+    console.log("🚀 Server running on:");
+    console.log(`   Local:   http://localhost:${PORT}`);
+    
+    // Display all network IP addresses
+    Object.keys(networkInterfaces).forEach((interfaceName) => {
+      networkInterfaces[interfaceName].forEach((iface) => {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          console.log(`   Network: http://${iface.address}:${PORT}`);
+        }
+      });
+    });
+    
     console.log("🔗 Blockchain status:", blockchain.isConnected() ? "✅ Connected" : "❌ Not connected");
   });
 }
