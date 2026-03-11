@@ -5,7 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JustRation - PDS Supply Chain Dashboard</title>
     
-    <!-- Authentication Check - Must run FIRST before anything loads -->
+    <!-- Load CSS/JS resources FIRST -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Authentication Check -->
     <script>
         (function() {
             const currentUser = JSON.parse(localStorage.getItem('currentUser') || 'null');
@@ -15,11 +21,6 @@
             }
         })();
     </script>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -168,7 +169,7 @@
         }
     }
 
-    async function loadDBFromFirebase() {
+    async function loadDBFromSupabase() {
         if (isLoading) return;
         isLoading = true;
         try {
@@ -193,10 +194,10 @@
                     });
                 }
                 
-                console.log('✓ Data loaded from Firebase:', db);
+                console.log('✓ Data loaded from database:', db);
             }
         } catch (error) {
-            console.error('Error loading data from Firebase:', error);
+            console.error('Error loading data from database:', error);
             showToast('Failed to load data. Using defaults.', 'error');
             // Set default values
             db.grains = ['Wheat', 'Rice', 'Sugar'];
@@ -208,8 +209,8 @@
     }
 
     function saveDB(data) {
-        // Data is automatically saved to Firebase via API endpoints
-        console.log('Data saved to Firebase');
+        // Data is automatically saved to Supabase via API endpoints
+        console.log('Data saved to database');
     }
     
     function showToast(message, type = 'success') {
@@ -239,12 +240,12 @@
             return; 
         }
         
-        addStockToFirebase(godownId, grain, quantity).then(result => {
+        addStockToDB(godownId, grain, quantity).then(result => {
             if (result && !result.error) {
                 document.getElementById('central-quantity-input').value = '';
                 renderCentralAdminView();
                 showToast(`${quantity.toLocaleString()} Kgs of ${grain} added successfully!`, 'success');
-                loadDBFromFirebase();
+                loadDBFromSupabase();
             } else if (result && result.message) {
                 showToast(result.message, 'error');
             }
@@ -261,11 +262,11 @@
             return; 
         }
         
-        dispatchToFirebase(fromId, toId, grain, quantity).then(result => {
+        dispatchToDB(fromId, toId, grain, quantity).then(result => {
             if (result && !result.error) {
                 showToast('Stock transferred from Godown to Warehouse successfully!', 'success');
                 renderGodownToWarehouseView();
-                loadDBFromFirebase();
+                loadDBFromSupabase();
             } else if (result && result.message) {
                 showToast(result.message, 'error');
             }
@@ -282,11 +283,11 @@
             return; 
         }
         
-        dispatchToFirebase(fromId, toId, grain, quantity).then(result => {
+        dispatchToDB(fromId, toId, grain, quantity).then(result => {
             if (result && !result.error) {
                 showToast('Stock transferred from Warehouse to City Hub successfully!', 'success');
                 renderWarehouseToCityHubView();
-                loadDBFromFirebase();
+                loadDBFromSupabase();
             } else if (result && result.message) {
                 showToast(result.message, 'error');
             }
@@ -303,11 +304,11 @@
             return; 
         }
         
-        dispatchToFirebase(fromId, toId, grain, quantity).then(result => {
+        dispatchToDB(fromId, toId, grain, quantity).then(result => {
             if (result && !result.error) {
                 showToast('Stock transferred from City Hub to FPS successfully!', 'success');
                 renderCityHubToFPSView();
-                loadDBFromFirebase();
+                loadDBFromSupabase();
             } else if (result && result.message) {
                 showToast(result.message, 'error');
             }
@@ -342,13 +343,13 @@
         const fpsId = document.getElementById('beneficiary-reg-fps-select').value;
         if (!name || !rationCardId || !fpsId) { showToast('Please fill all fields.', 'error'); return; }
         
-        addBeneficiaryToFirebase(name, rationCardId, fpsId).then(result => {
+        addBeneficiaryToDB(name, rationCardId, fpsId).then(result => {
             if (result && !result.error) {
                 showToast(`Beneficiary ${name} registered successfully!`, 'success');
                 document.getElementById('beneficiary-name').value = '';
                 document.getElementById('beneficiary-ration-id').value = '';
                 renderBeneficiaryView();
-                loadDBFromFirebase();
+                loadDBFromSupabase();
             } else if (result && result.message) {
                 showToast(result.message, 'error');
             }
@@ -380,11 +381,11 @@
             return;
         }
         
-        distributeToFirebase(fpsId, beneficiaryId, grainToDistribute, quantityToDistribute).then(result => {
+        distributeToDB(fpsId, beneficiaryId, grainToDistribute, quantityToDistribute).then(result => {
             if (result && !result.error) {
                 showToast(`${quantityToDistribute} Kgs of ${grainToDistribute} distributed successfully!`, 'success');
                 renderBeneficiaryView();
-                loadDBFromFirebase();
+                loadDBFromSupabase();
             } else if (result && result.message) {
                 showToast(result.message, 'error');
             }
@@ -410,21 +411,21 @@
         if(!grainName) { showToast('Please enter a grain name.', 'error'); return; }
         if(db.grains && db.grains.filter(g => g).map(g => g.toLowerCase()).includes(grainName.toLowerCase())) { showToast('This grain type already exists.', 'error'); return; }
         
-        addGrainToFirebase(grainName).then(result => {
+        addGrainToDB(grainName).then(result => {
             if (result && !result.error) {
                 showToast(`Grain type '${grainName}' added successfully!`, 'success');
                 grainNameInput.value = '';
-                loadDBFromFirebase().then(() => renderSystemAdminView());
+                loadDBFromSupabase().then(() => renderSystemAdminView());
             }
         });
     }
 
     function removeGrain(grainToRemove) {
         if(confirm(`Are you sure you want to remove '${grainToRemove}'? This will not delete existing stock records.`)) {
-            removeGrainFromFirebase(grainToRemove).then(result => {
+            removeGrainFromDB(grainToRemove).then(result => {
                 if (result && !result.error) {
                     showToast(`Grain type '${grainToRemove}' removed successfully!`, 'success');
-                    loadDBFromFirebase().then(() => renderSystemAdminView());
+                    loadDBFromSupabase().then(() => renderSystemAdminView());
                 } else if (result && result.message) {
                     showToast(result.message, 'error');
                 }
@@ -475,11 +476,11 @@
         if (!state || !city || !name) { showToast('Please complete all FPS fields.', 'error'); return; }
         
         const locId = `fps-${Date.now()}`;
-        addLocationToFirebase(locId, name, 'fps', state, city, {}).then(result => {
+        addLocationToDB(locId, name, 'fps', state, city, {}).then(result => {
             if (result) {
-                showToast('Fair Price Shop created in Firebase!', 'success');
+                showToast('Fair Price Shop created successfully!', 'success');
                 document.getElementById('admin-fps-name').value = '';
-                loadDBFromFirebase().then(() => renderSystemAdminView());
+                loadDBFromSupabase().then(() => renderSystemAdminView());
             }
         });
     }
@@ -489,10 +490,10 @@
         if (!locationId) { showToast('Please select a location to delete.', 'error'); return; }
         const locationName = db.locations[locationId] ? db.locations[locationId].name : locationId;
         if (confirm(`Are you sure you want to permanently delete "${locationName}"?`)) {
-            deleteLocationFromFirebase(locationId).then(result => {
+            deleteLocationFromDB(locationId).then(result => {
                 if (result && !result.error) {
                     showToast('Location deleted successfully!', 'success');
-                    loadDBFromFirebase().then(() => {
+                    loadDBFromSupabase().then(() => {
                         renderSystemAdminView();
                         renderStateAdminView();
                         renderBeneficiaryView();
@@ -851,14 +852,16 @@
     function renderTransactionView() {
         document.getElementById('ledger-transaction-history-body').innerHTML = (db.transactions || []).map(tx => {
             let rowClass = '', itemsHtml = '';
+            const txFrom = tx.from_entity || tx.from || 'N/A';
+            const txTo = tx.to_entity || tx.to || 'N/A';
             if (tx.type === 'admin') {
                 rowClass = 'bg-yellow-50'; itemsHtml = `<div class="font-semibold text-gray-600">${tx.items || 'N/A'}</div>`;
             } else {
-                if (tx.from === 'Govt. Procurement' || tx.from === 'Govt Procurement') rowClass = 'bg-green-50';
-                if (tx.to && tx.to.startsWith('Beneficiary')) rowClass = 'bg-blue-50';
+                if (txFrom === 'Govt. Procurement' || txFrom === 'Govt Procurement') rowClass = 'bg-green-50';
+                if (txTo && txTo.startsWith('Beneficiary')) rowClass = 'bg-blue-50';
                 itemsHtml = typeof tx.items === 'object' && tx.items ? Object.entries(tx.items).map(([g, q]) => `<div>${g}: ${(q || 0).toLocaleString()} Kgs</div>`).join('') : '<div>N/A</div>';
             }
-            return `<tr class="border-b ${rowClass}"><td class="py-3 px-4 font-mono text-xs">${tx.hash || 'N/A'}</td><td class="py-3 px-4 text-sm">${tx.timestamp || 'N/A'}</td><td class="py-3 px-4 text-sm">${tx.from || 'N/A'}</td><td class="py-3 px-4 text-sm">${tx.to || 'N/A'}</td><td class="py-3 px-4 text-sm">${itemsHtml}</td></tr>`;
+            return `<tr class="border-b ${rowClass}"><td class="py-3 px-4 font-mono text-xs">${tx.hash || 'N/A'}</td><td class="py-3 px-4 text-sm">${tx.timestamp || 'N/A'}</td><td class="py-3 px-4 text-sm">${txFrom}</td><td class="py-3 px-4 text-sm">${txTo}</td><td class="py-3 px-4 text-sm">${itemsHtml}</td></tr>`;
         }).join('') || '<tr><td colspan="5" class="py-8 text-center text-gray-500">No transactions found</td></tr>';
     }
     
@@ -930,8 +933,8 @@
             }
         }
         
-        // Load data from Firebase on page load
-        loadDBFromFirebase().then(() => {
+        // Load data from Supabase on page load
+        loadDBFromSupabase().then(() => {
             // Initialize user profile after data is loaded
             initializeUserProfile();
             

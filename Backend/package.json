@@ -20,7 +20,7 @@
     "dotenv": "^16.6.1",
     "ejs": "^4.0.1",
     "express": "^5.2.1",
-    "firebase-admin": "^13.6.0",
+    "@supabase/supabase-js": "^2.49.4",
     "web3": "^4.15.0"
   },
   "devDependencies": {

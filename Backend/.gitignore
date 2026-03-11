@@ -7,10 +7,6 @@ package-lock.json
 .env.local
 .env.production
 
-# Firebase credentials
-firebase-key.json
-firebase-key.json.json
-
 # Blockchain
 build/
 .truffle/

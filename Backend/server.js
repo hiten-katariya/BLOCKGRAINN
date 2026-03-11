@@ -3,13 +3,7 @@ const cors = require("cors");
 const path = require("path");
 require('dotenv').config();
 
-const {
-  locationsRef,
-  beneficiariesRef,
-  grainsRef,
-  transactionsRef
-} = require("./firebase");
-
+const { supabase } = require("./supabase");
 const blockchain = require("./blockchain");
 
 const app = express();
@@ -53,27 +47,38 @@ app.get("/api/health", (req, res) => {
 /* GET ALL DATA */
 app.get("/api/db", async (req, res) => {
   try {
-    const locations = await locationsRef.get();
-    const beneficiaries = await beneficiariesRef.get();
-    const grains = await grainsRef.get();
-    const transactions = await transactionsRef
-      .orderBy("timestamp", "desc")
-      .get();
+    const { data: locations, error: locErr } = await supabase
+      .from('locations')
+      .select('*');
+    if (locErr) throw locErr;
+
+    const { data: beneficiaries, error: benErr } = await supabase
+      .from('beneficiaries')
+      .select('*');
+    if (benErr) throw benErr;
+
+    const { data: grains, error: grainErr } = await supabase
+      .from('grains')
+      .select('*');
+    if (grainErr) throw grainErr;
+
+    const { data: transactions, error: txErr } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('timestamp', { ascending: false });
+    if (txErr) throw txErr;
 
     res.json({
-      locations: locations.docs.map(d => ({ id: d.id, ...d.data() })),
-      beneficiaries: beneficiaries.docs.map(d => ({ id: d.id, ...d.data() })),
-      grains: grains.docs.map(d => {
-        const data = d.data();
-        return data.name || d.id;
-      }),
-      transactions: transactions.docs.map(d => d.data())
+      locations: locations.map(d => ({ id: d.id, ...d })),
+      beneficiaries: beneficiaries.map(d => ({ id: d.id, ...d })),
+      grains: grains.map(d => d.name || d.id),
+      transactions: transactions
     });
   } catch (error) {
-    console.error('Error fetching data from Firebase:', error.message);
+    console.error('Error fetching data from Supabase:', error.message);
     res.status(500).json({ 
       error: true, 
-      message: 'Failed to fetch data from Firebase',
+      message: 'Failed to fetch data from database',
       details: error.message 
     });
   }
@@ -90,33 +95,49 @@ app.post("/api/add-stock", async (req, res) => {
     return res.status(400).json({ message: "Invalid quantity", error: true });
   }
 
-  const ref = locationsRef.doc(godownId);
-  const doc = await ref.get();
-  if (!doc.exists) {
+  const { data: doc, error: fetchErr } = await supabase
+    .from('locations')
+    .select('*')
+    .eq('id', godownId)
+    .single();
+
+  if (fetchErr || !doc) {
     return res.status(404).json({ message: "Godown not found", error: true });
   }
-  let data = doc.data();
 
-  data.stock[grain] = (data.stock[grain] || 0) + quantity;
-  await ref.update({ stock: data.stock });
+  const stock = doc.stock || {};
+  stock[grain] = (stock[grain] || 0) + quantity;
+
+  const { error: updateErr } = await supabase
+    .from('locations')
+    .update({ stock })
+    .eq('id', godownId);
+
+  if (updateErr) {
+    return res.status(500).json({ message: "Failed to update stock", error: true });
+  }
 
   // Record on blockchain
   const blockchainHash = await blockchain.recordTransaction(
     "Govt Procurement",
-    data.name,
+    doc.name,
     grain,
     quantity,
     "transfer"
   );
 
-  await transactionsRef.add({
-    hash: blockchainHash || "0x" + Date.now(),
-    timestamp: new Date().toLocaleString(),
-    from: "Govt Procurement",
-    to: data.name,
-    items: { [grain]: quantity },
-    type: "transfer"
-  });
+  const { error: txErr } = await supabase
+    .from('transactions')
+    .insert({
+      hash: blockchainHash || "0x" + Date.now(),
+      timestamp: new Date().toLocaleString(),
+      from_entity: "Govt Procurement",
+      to_entity: doc.name,
+      items: { [grain]: quantity },
+      type: "transfer"
+    });
+
+  if (txErr) console.error("Error recording transaction:", txErr.message);
 
   res.json({ 
     message: "Stock added successfully",
@@ -136,45 +157,64 @@ app.post("/api/dispatch", async (req, res) => {
     return res.status(400).json({ message: "Invalid quantity", error: true });
   }
 
-  const fromRef = locationsRef.doc(fromId);
-  const toRef = locationsRef.doc(toId);
+  const { data: fromDoc, error: fromErr } = await supabase
+    .from('locations')
+    .select('*')
+    .eq('id', fromId)
+    .single();
 
-  const fromDoc = await fromRef.get();
-  const toDoc = await toRef.get();
+  const { data: toDoc, error: toErr } = await supabase
+    .from('locations')
+    .select('*')
+    .eq('id', toId)
+    .single();
   
-  if (!fromDoc.exists || !toDoc.exists) {
+  if (fromErr || !fromDoc || toErr || !toDoc) {
     return res.status(404).json({ message: "Source or destination not found", error: true });
   }
 
-  const from = fromDoc.data();
-  const to = toDoc.data();
+  const fromStock = fromDoc.stock || {};
+  const toStock = toDoc.stock || {};
 
-  if ((from.stock[grain] || 0) < quantity)
+  if ((fromStock[grain] || 0) < quantity)
     return res.status(400).json({ message: "Not enough stock", error: true });
 
-  from.stock[grain] -= quantity;
-  to.stock[grain] = (to.stock[grain] || 0) + quantity;
+  fromStock[grain] -= quantity;
+  toStock[grain] = (toStock[grain] || 0) + quantity;
 
-  await fromRef.update({ stock: from.stock });
-  await toRef.update({ stock: to.stock });
+  const { error: updateFromErr } = await supabase
+    .from('locations')
+    .update({ stock: fromStock })
+    .eq('id', fromId);
+
+  const { error: updateToErr } = await supabase
+    .from('locations')
+    .update({ stock: toStock })
+    .eq('id', toId);
+
+  if (updateFromErr || updateToErr) {
+    return res.status(500).json({ message: "Failed to update stock", error: true });
+  }
 
   // Record on blockchain
   const blockchainHash = await blockchain.recordTransaction(
-    from.name,
-    to.name,
+    fromDoc.name,
+    toDoc.name,
     grain,
     quantity,
     "transfer"
   );
 
-  await transactionsRef.add({
-    hash: blockchainHash || "0x" + Date.now(),
-    timestamp: new Date().toLocaleString(),
-    from: from.name,
-    to: to.name,
-    items: { [grain]: quantity },
-    type: "transfer"
-  });
+  await supabase
+    .from('transactions')
+    .insert({
+      hash: blockchainHash || "0x" + Date.now(),
+      timestamp: new Date().toLocaleString(),
+      from_entity: fromDoc.name,
+      to_entity: toDoc.name,
+      items: { [grain]: quantity },
+      type: "transfer"
+    });
 
   res.json({ 
     message: "Consignment dispatched",
@@ -193,26 +233,40 @@ app.post("/api/add-beneficiary", async (req, res) => {
     return res.status(400).json({ message: "Name and Ration Card ID cannot be empty", error: true });
   }
 
-  const existingBen = await beneficiariesRef.doc(rationCardId).get();
-  if (existingBen.exists) {
+  const { data: existing } = await supabase
+    .from('beneficiaries')
+    .select('id')
+    .eq('id', rationCardId)
+    .single();
+
+  if (existing) {
     return res.status(400).json({ message: "Ration Card ID already exists", error: true });
   }
 
-  await beneficiariesRef.doc(rationCardId).set({
-    name,
-    rationCardId,
-    fpsId,
-    entitlement: { Wheat: 15, Rice: 10, Sugar: 2 }
-  });
+  const { error: insertErr } = await supabase
+    .from('beneficiaries')
+    .insert({
+      id: rationCardId,
+      name,
+      ration_card_id: rationCardId,
+      fps_id: fpsId,
+      entitlement: { Wheat: 15, Rice: 10, Sugar: 2 }
+    });
 
-  await transactionsRef.add({
-    hash: "0x" + Date.now(),
-    timestamp: new Date().toLocaleString(),
-    from: "System Admin",
-    to: "Create Beneficiary",
-    items: `${name} (${rationCardId})`,
-    type: "admin"
-  });
+  if (insertErr) {
+    return res.status(500).json({ message: "Failed to add beneficiary", error: true });
+  }
+
+  await supabase
+    .from('transactions')
+    .insert({
+      hash: "0x" + Date.now(),
+      timestamp: new Date().toLocaleString(),
+      from_entity: "System Admin",
+      to_entity: "Create Beneficiary",
+      items: `${name} (${rationCardId})`,
+      type: "admin"
+    });
 
   res.json({ message: "Beneficiary registered" });
 });
@@ -228,42 +282,57 @@ app.post("/api/distribute", async (req, res) => {
     return res.status(400).json({ message: "Invalid quantity", error: true });
   }
 
-  const fpsRef = locationsRef.doc(fpsId);
-  const benRef = beneficiariesRef.doc(beneficiaryId);
+  const { data: fpsDoc, error: fpsErr } = await supabase
+    .from('locations')
+    .select('*')
+    .eq('id', fpsId)
+    .single();
 
-  const fpsDoc = await fpsRef.get();
-  const benDoc = await benRef.get();
+  const { data: benDoc, error: benErr } = await supabase
+    .from('beneficiaries')
+    .select('*')
+    .eq('id', beneficiaryId)
+    .single();
   
-  if (!fpsDoc.exists || !benDoc.exists) {
+  if (fpsErr || !fpsDoc || benErr || !benDoc) {
     return res.status(404).json({ message: "FPS or beneficiary not found", error: true });
   }
 
-  const fps = fpsDoc.data();
-  const ben = benDoc.data();
+  const fpsStock = fpsDoc.stock || {};
 
-  if ((fps.stock[grain] || 0) < quantity)
+  if ((fpsStock[grain] || 0) < quantity)
     return res.status(400).json({ message: "Not enough stock", error: true });
 
-  fps.stock[grain] -= quantity;
-  await fpsRef.update({ stock: fps.stock });
+  fpsStock[grain] -= quantity;
+
+  const { error: updateErr } = await supabase
+    .from('locations')
+    .update({ stock: fpsStock })
+    .eq('id', fpsId);
+
+  if (updateErr) {
+    return res.status(500).json({ message: "Failed to update stock", error: true });
+  }
 
   // Record on blockchain
   const blockchainHash = await blockchain.recordTransaction(
-    fps.name,
-    `Beneficiary: ${ben.name}`,
+    fpsDoc.name,
+    `Beneficiary: ${benDoc.name}`,
     grain,
     quantity,
     "transfer"
   );
 
-  await transactionsRef.add({
-    hash: blockchainHash || "0x" + Date.now(),
-    timestamp: new Date().toLocaleString(),
-    from: fps.name,
-    to: `Beneficiary: ${ben.name}`,
-    items: { [grain]: quantity },
-    type: "transfer"
-  });
+  await supabase
+    .from('transactions')
+    .insert({
+      hash: blockchainHash || "0x" + Date.now(),
+      timestamp: new Date().toLocaleString(),
+      from_entity: fpsDoc.name,
+      to_entity: `Beneficiary: ${benDoc.name}`,
+      items: { [grain]: quantity },
+      type: "transfer"
+    });
 
   res.json({ 
     message: "Ration distributed",
@@ -283,26 +352,39 @@ app.post("/api/add-grain", async (req, res) => {
   }
   
   const grainKey = grainName.toLowerCase();
-  const existingGrain = await grainsRef.doc(grainKey).get();
-  if (existingGrain.exists) {
+
+  const { data: existing } = await supabase
+    .from('grains')
+    .select('id')
+    .eq('id', grainKey)
+    .single();
+
+  if (existing) {
     return res.status(400).json({ message: "Grain already exists", error: true });
   }
   
-  const newGrain = {
-    name: grainName,
-    createdAt: new Date().toLocaleString()
-  };
+  const { error: insertErr } = await supabase
+    .from('grains')
+    .insert({
+      id: grainKey,
+      name: grainName,
+      created_at: new Date().toISOString()
+    });
+
+  if (insertErr) {
+    return res.status(500).json({ message: "Failed to add grain", error: true });
+  }
   
-  await grainsRef.doc(grainKey).set(newGrain);
-  
-  await transactionsRef.add({
-    hash: "0x" + Date.now(),
-    timestamp: new Date().toLocaleString(),
-    from: "System Admin",
-    to: "Add Grain Type",
-    items: grainName,
-    type: "admin"
-  });
+  await supabase
+    .from('transactions')
+    .insert({
+      hash: "0x" + Date.now(),
+      timestamp: new Date().toLocaleString(),
+      from_entity: "System Admin",
+      to_entity: "Add Grain Type",
+      items: grainName,
+      type: "admin"
+    });
   
   res.json({ message: "Grain added successfully" });
 });
@@ -319,21 +401,36 @@ app.post("/api/remove-grain", async (req, res) => {
   }
   
   const grainKey = grainName.toLowerCase();
-  const grain = await grainsRef.doc(grainKey).get();
-  if (!grain.exists) {
+
+  const { data: existing } = await supabase
+    .from('grains')
+    .select('id')
+    .eq('id', grainKey)
+    .single();
+
+  if (!existing) {
     return res.status(404).json({ message: "Grain not found", error: true });
   }
   
-  await grainsRef.doc(grainKey).delete();
+  const { error: deleteErr } = await supabase
+    .from('grains')
+    .delete()
+    .eq('id', grainKey);
+
+  if (deleteErr) {
+    return res.status(500).json({ message: "Failed to remove grain", error: true });
+  }
   
-  await transactionsRef.add({
-    hash: "0x" + Date.now(),
-    timestamp: new Date().toLocaleString(),
-    from: "System Admin",
-    to: "Remove Grain Type",
-    items: grainName,
-    type: "admin"
-  });
+  await supabase
+    .from('transactions')
+    .insert({
+      hash: "0x" + Date.now(),
+      timestamp: new Date().toLocaleString(),
+      from_entity: "System Admin",
+      to_entity: "Remove Grain Type",
+      items: grainName,
+      type: "admin"
+    });
   
   res.json({ message: "Grain removed successfully" });
 });
@@ -349,23 +446,33 @@ app.post("/api/add-location", async (req, res) => {
     return res.status(400).json({ message: "Location ID, name, and type cannot be empty", error: true });
   }
   
-  const existingLoc = await locationsRef.doc(locId).get();
-  if (existingLoc.exists) {
+  const { data: existing } = await supabase
+    .from('locations')
+    .select('id')
+    .eq('id', locId)
+    .single();
+
+  if (existing) {
     return res.status(400).json({ message: "Location ID already exists", error: true });
   }
   
   // Initialize demand with all grains for FPS locations
   let demandStructure = demand || {};
   if (type && type.toLowerCase() === 'fps') {
-    const grainsSnapshot = await grainsRef.get();
+    const { data: grainsList } = await supabase
+      .from('grains')
+      .select('*');
+    
     demandStructure = {};
-    grainsSnapshot.docs.forEach(doc => {
-      const grainName = doc.data().name || doc.id;
-      demandStructure[grainName] = {
-        stock: 0,
-        demand: 0
-      };
-    });
+    if (grainsList) {
+      grainsList.forEach(g => {
+        const grainName = g.name || g.id;
+        demandStructure[grainName] = {
+          stock: 0,
+          demand: 0
+        };
+      });
+    }
   }
   
   const locationData = {
@@ -376,19 +483,27 @@ app.post("/api/add-location", async (req, res) => {
     city: city || "",
     stock: {},
     demand: demandStructure,
-    createdAt: new Date().toLocaleString()
+    created_at: new Date().toISOString()
   };
   
-  await locationsRef.doc(locId).set(locationData);
+  const { error: insertErr } = await supabase
+    .from('locations')
+    .insert(locationData);
+
+  if (insertErr) {
+    return res.status(500).json({ message: "Failed to create location", error: true });
+  }
   
-  await transactionsRef.add({
-    hash: "0x" + Date.now(),
-    timestamp: new Date().toLocaleString(),
-    from: "System Admin",
-    to: "Create Location",
-    items: `${name} [${type}]`,
-    type: "admin"
-  });
+  await supabase
+    .from('transactions')
+    .insert({
+      hash: "0x" + Date.now(),
+      timestamp: new Date().toLocaleString(),
+      from_entity: "System Admin",
+      to_entity: "Create Location",
+      items: `${name} [${type}]`,
+      type: "admin"
+    });
   
   res.json({ message: "Location created successfully" });
 });
@@ -404,24 +519,37 @@ app.post("/api/delete-location", async (req, res) => {
     return res.status(400).json({ message: "Location ID cannot be empty", error: true });
   }
   
-  const locRef = locationsRef.doc(locId);
-  const locData = await locRef.get();
+  const { data: locData, error: fetchErr } = await supabase
+    .from('locations')
+    .select('*')
+    .eq('id', locId)
+    .single();
   
-  if (!locData.exists) {
+  if (fetchErr || !locData) {
     return res.status(404).json({ message: "Location not found", error: true });
   }
   
-  const locName = locData.data().name;
-  await locRef.delete();
+  const locName = locData.name;
+
+  const { error: deleteErr } = await supabase
+    .from('locations')
+    .delete()
+    .eq('id', locId);
+
+  if (deleteErr) {
+    return res.status(500).json({ message: "Failed to delete location", error: true });
+  }
   
-  await transactionsRef.add({
-    hash: "0x" + Date.now(),
-    timestamp: new Date().toLocaleString(),
-    from: "System Admin",
-    to: "Delete Location",
-    items: locName,
-    type: "admin"
-  });
+  await supabase
+    .from('transactions')
+    .insert({
+      hash: "0x" + Date.now(),
+      timestamp: new Date().toLocaleString(),
+      from_entity: "System Admin",
+      to_entity: "Delete Location",
+      items: locName,
+      type: "admin"
+    });
   
   res.json({ message: "Location deleted successfully" });
 });

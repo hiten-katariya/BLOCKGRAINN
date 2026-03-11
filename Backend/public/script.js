@@ -1,4 +1,4 @@
-/* Firebase Connected Backend - Data fetched from API */
+/* Supabase Backend - Data fetched from API */
 const API_BASE = '/api';
 
 async function fetchAllData() {
@@ -17,7 +17,7 @@ async function fetchAllData() {
   }
 }
 
-async function addStockToFirebase(godownId, grain, quantity) {
+async function addStockToDB(godownId, grain, quantity) {
   try {
     const res = await fetch(`${API_BASE}/add-stock`, {
       method: 'POST',
@@ -32,7 +32,7 @@ async function addStockToFirebase(godownId, grain, quantity) {
   }
 }
 
-async function dispatchToFirebase(fromId, toId, grain, quantity) {
+async function dispatchToDB(fromId, toId, grain, quantity) {
   try {
     const res = await fetch(`${API_BASE}/dispatch`, {
       method: 'POST',
@@ -47,7 +47,7 @@ async function dispatchToFirebase(fromId, toId, grain, quantity) {
   }
 }
 
-async function addBeneficiaryToFirebase(name, rationCardId, fpsId) {
+async function addBeneficiaryToDB(name, rationCardId, fpsId) {
   try {
     const res = await fetch(`${API_BASE}/add-beneficiary`, {
       method: 'POST',
@@ -62,7 +62,7 @@ async function addBeneficiaryToFirebase(name, rationCardId, fpsId) {
   }
 }
 
-async function distributeToFirebase(fpsId, beneficiaryId, grain, quantity) {
+async function distributeToDB(fpsId, beneficiaryId, grain, quantity) {
   try {
     const res = await fetch(`${API_BASE}/distribute`, {
       method: 'POST',
@@ -77,7 +77,7 @@ async function distributeToFirebase(fpsId, beneficiaryId, grain, quantity) {
   }
 }
 
-async function addGrainToFirebase(grainName) {
+async function addGrainToDB(grainName) {
   try {
     const res = await fetch(`${API_BASE}/add-grain`, {
       method: 'POST',
@@ -92,7 +92,7 @@ async function addGrainToFirebase(grainName) {
   }
 }
 
-async function removeGrainFromFirebase(grainName) {
+async function removeGrainFromDB(grainName) {
   try {
     const res = await fetch(`${API_BASE}/remove-grain`, {
       method: 'POST',
@@ -107,7 +107,7 @@ async function removeGrainFromFirebase(grainName) {
   }
 }
 
-async function addLocationToFirebase(locId, name, type, state, city, demand) {
+async function addLocationToDB(locId, name, type, state, city, demand) {
   try {
     const res = await fetch(`${API_BASE}/add-location`, {
       method: 'POST',
@@ -122,7 +122,7 @@ async function addLocationToFirebase(locId, name, type, state, city, demand) {
   }
 }
 
-async function deleteLocationFromFirebase(locId) {
+async function deleteLocationFromDB(locId) {
   try {
     const res = await fetch(`${API_BASE}/delete-location`, {
       method: 'POST',

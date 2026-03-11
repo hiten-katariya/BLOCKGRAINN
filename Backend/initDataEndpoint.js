@@ -4,54 +4,53 @@
 /* INITIALIZE DATABASE ENDPOINT (For Deployment) */
 app.post("/api/init-database", async (req, res) => {
   try {
-    const {
-      locationsRef,
-      beneficiariesRef,
-      grainsRef,
-      transactionsRef
-    } = require("./firebase");
+    const { supabase } = require("./supabase");
 
     console.log("🔄 Starting database initialization...");
 
     /* ================= CENTRAL GODOWNS ================= */
-    await locationsRef.doc("godown-punjab-ludhiana").set({
+    await supabase.from('locations').upsert({
+      id: "godown-punjab-ludhiana",
       name: "Punjab Central Godown (Ludhiana)",
       type: "godown",
       state: "Punjab",
       city: "Ludhiana",
       stock: { Wheat: 500000, Rice: 300000, Sugar: 100000 },
       demand: {},
-      createdAt: new Date().toLocaleString()
+      created_at: new Date().toISOString()
     });
 
-    await locationsRef.doc("godown-haryana-karnal").set({
+    await supabase.from('locations').upsert({
+      id: "godown-haryana-karnal",
       name: "Haryana Central Godown (Karnal)",
       type: "godown",
       state: "Haryana",
       city: "Karnal",
       stock: { Wheat: 450000, Rice: 250000, Sugar: 90000 },
       demand: {},
-      createdAt: new Date().toLocaleString()
+      created_at: new Date().toISOString()
     });
 
-    await locationsRef.doc("godown-wb-kolkata").set({
+    await supabase.from('locations').upsert({
+      id: "godown-wb-kolkata",
       name: "West Bengal Central Godown (Kolkata)",
       type: "godown",
       state: "West Bengal",
       city: "Kolkata",
       stock: { Wheat: 200000, Rice: 400000, Sugar: 80000 },
       demand: {},
-      createdAt: new Date().toLocaleString()
+      created_at: new Date().toISOString()
     });
 
-    await locationsRef.doc("godown-up-kanpur").set({
+    await supabase.from('locations').upsert({
+      id: "godown-up-kanpur",
       name: "UP Central Godown (Kanpur)",
       type: "godown",
       state: "Uttar Pradesh",
       city: "Kanpur",
       stock: { Wheat: 550000, Rice: 350000, Sugar: 120000 },
       demand: {},
-      createdAt: new Date().toLocaleString()
+      created_at: new Date().toISOString()
     });
 
     /* ================= STATE WAREHOUSES ================= */
@@ -67,14 +66,15 @@ app.post("/api/init-database", async (req, res) => {
     ];
 
     for (const wh of warehouses) {
-      await locationsRef.doc(wh.id).set({
+      await supabase.from('locations').upsert({
+        id: wh.id,
         name: wh.name,
         type: "warehouse",
         state: wh.state,
         city: "",
         stock: {},
         demand: { Wheat: 50000, Rice: 30000, Sugar: 10000 },
-        createdAt: new Date().toLocaleString()
+        created_at: new Date().toISOString()
       });
     }
 
@@ -100,14 +100,15 @@ app.post("/api/init-database", async (req, res) => {
     ];
 
     for (const hub of cityHubs) {
-      await locationsRef.doc(hub.id).set({
+      await supabase.from('locations').upsert({
+        id: hub.id,
         name: hub.name,
         type: "cityhub",
         state: hub.state,
         city: hub.city,
         stock: {},
         demand: { Wheat: 20000, Rice: 15000, Sugar: 5000 },
-        createdAt: new Date().toLocaleString()
+        created_at: new Date().toISOString()
       });
     }
 
@@ -133,78 +134,91 @@ app.post("/api/init-database", async (req, res) => {
     ];
 
     for (const fps of fpsShops) {
-      await locationsRef.doc(fps.id).set({
+      await supabase.from('locations').upsert({
+        id: fps.id,
         name: fps.name,
         type: "fps",
         state: fps.state,
         city: fps.city,
         stock: {},
         demand: { Wheat: 5000, Rice: 4000, Sugar: 1000 },
-        createdAt: new Date().toLocaleString()
+        created_at: new Date().toISOString()
       });
     }
 
     /* ================= BENEFICIARIES ================= */
-    await beneficiariesRef.doc("PB2026001").set({
+    await supabase.from('beneficiaries').upsert({
+      id: "PB2026001",
       name: "Gurpreet Singh",
-      rationCardId: "PB2026001",
-      fpsId: "fps-punjab-amritsar-golden",
+      ration_card_id: "PB2026001",
+      fps_id: "fps-punjab-amritsar-golden",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
-    await beneficiariesRef.doc("HR2026001").set({
+    await supabase.from('beneficiaries').upsert({
+      id: "HR2026001",
       name: "Rajesh Kumar",
-      rationCardId: "HR2026001",
-      fpsId: "fps-haryana-gurugram-sector",
+      ration_card_id: "HR2026001",
+      fps_id: "fps-haryana-gurugram-sector",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
-    await beneficiariesRef.doc("DL2026001").set({
+    await supabase.from('beneficiaries').upsert({
+      id: "DL2026001",
       name: "Amit Sharma",
-      rationCardId: "DL2026001",
-      fpsId: "fps-delhi-central-cp",
+      ration_card_id: "DL2026001",
+      fps_id: "fps-delhi-central-cp",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
-    await beneficiariesRef.doc("UP2026001").set({
+    await supabase.from('beneficiaries').upsert({
+      id: "UP2026001",
       name: "Priya Verma",
-      rationCardId: "UP2026001",
-      fpsId: "fps-up-lucknow-hazrat",
+      ration_card_id: "UP2026001",
+      fps_id: "fps-up-lucknow-hazrat",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
-    await beneficiariesRef.doc("RJ2026001").set({
+    await supabase.from('beneficiaries').upsert({
+      id: "RJ2026001",
       name: "Manish Rathore",
-      rationCardId: "RJ2026001",
-      fpsId: "fps-rajasthan-jaipur-pink",
+      ration_card_id: "RJ2026001",
+      fps_id: "fps-rajasthan-jaipur-pink",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
-    await beneficiariesRef.doc("MH2026001").set({
+    await supabase.from('beneficiaries').upsert({
+      id: "MH2026001",
       name: "Sneha Patil",
-      rationCardId: "MH2026001",
-      fpsId: "fps-maharashtra-mumbai-dadar",
+      ration_card_id: "MH2026001",
+      fps_id: "fps-maharashtra-mumbai-dadar",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
-    await beneficiariesRef.doc("WB2026001").set({
+    await supabase.from('beneficiaries').upsert({
+      id: "WB2026001",
       name: "Soumya Chatterjee",
-      rationCardId: "WB2026001",
-      fpsId: "fps-wb-kolkata-park",
+      ration_card_id: "WB2026001",
+      fps_id: "fps-wb-kolkata-park",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
-    await beneficiariesRef.doc("GJ2026001").set({
+    await supabase.from('beneficiaries').upsert({
+      id: "GJ2026001",
       name: "Kiran Patel",
-      rationCardId: "GJ2026001",
-      fpsId: "fps-gujarat-ahmedabad-ellis",
+      ration_card_id: "GJ2026001",
+      fps_id: "fps-gujarat-ahmedabad-ellis",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
     /* ================= GRAINS ================= */
     const grains = ["Wheat", "Rice", "Sugar"];
     for (const g of grains) {
-      await grainsRef.doc(g).set({ name: g });
+      await supabase.from('grains').upsert({
+        id: g.toLowerCase(),
+        name: g,
+        created_at: new Date().toISOString()
+      });
     }
 
     console.log("✅ ALL DATABASE STRUCTURE INITIALIZED");
