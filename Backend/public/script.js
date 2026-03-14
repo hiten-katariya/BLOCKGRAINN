@@ -47,12 +47,12 @@ async function dispatchToDB(fromId, toId, grain, quantity) {
   }
 }
 
-async function addBeneficiaryToDB(name, rationCardId, fpsId) {
+async function addBeneficiaryToDB(name, rationCardId, fpsId, phoneNumber) {
   try {
     const res = await fetch(`${API_BASE}/add-beneficiary`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, rationCardId, fpsId })
+      body: JSON.stringify({ name, rationCardId, fpsId, phoneNumber })
     });
     const result = await res.json();
     return result;

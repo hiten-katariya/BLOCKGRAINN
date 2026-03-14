@@ -152,6 +152,7 @@ app.post("/api/init-database", async (req, res) => {
       name: "Gurpreet Singh",
       ration_card_id: "PB2026001",
       fps_id: "fps-punjab-amritsar-golden",
+      phone_number: "+919810000001",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
@@ -160,6 +161,7 @@ app.post("/api/init-database", async (req, res) => {
       name: "Rajesh Kumar",
       ration_card_id: "HR2026001",
       fps_id: "fps-haryana-gurugram-sector",
+      phone_number: "+919810000002",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
@@ -168,6 +170,7 @@ app.post("/api/init-database", async (req, res) => {
       name: "Amit Sharma",
       ration_card_id: "DL2026001",
       fps_id: "fps-delhi-central-cp",
+      phone_number: "+919810000003",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
@@ -176,6 +179,7 @@ app.post("/api/init-database", async (req, res) => {
       name: "Priya Verma",
       ration_card_id: "UP2026001",
       fps_id: "fps-up-lucknow-hazrat",
+      phone_number: "+919810000004",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
@@ -184,6 +188,7 @@ app.post("/api/init-database", async (req, res) => {
       name: "Manish Rathore",
       ration_card_id: "RJ2026001",
       fps_id: "fps-rajasthan-jaipur-pink",
+      phone_number: "+919810000005",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
@@ -192,6 +197,7 @@ app.post("/api/init-database", async (req, res) => {
       name: "Sneha Patil",
       ration_card_id: "MH2026001",
       fps_id: "fps-maharashtra-mumbai-dadar",
+      phone_number: "+919810000006",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
@@ -200,6 +206,7 @@ app.post("/api/init-database", async (req, res) => {
       name: "Soumya Chatterjee",
       ration_card_id: "WB2026001",
       fps_id: "fps-wb-kolkata-park",
+      phone_number: "+919810000007",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 
@@ -208,6 +215,7 @@ app.post("/api/init-database", async (req, res) => {
       name: "Kiran Patel",
       ration_card_id: "GJ2026001",
       fps_id: "fps-gujarat-ahmedabad-ellis",
+      phone_number: "+919810000008",
       entitlement: { Wheat: 100, Rice: 100, Sugar: 100 }
     });
 

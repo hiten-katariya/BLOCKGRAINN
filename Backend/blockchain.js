@@ -4,31 +4,42 @@ const path = require('path');
 
 class BlockchainService {
   constructor() {
-    // Check if blockchain is enabled (for production deployment)
-    this.enabled = process.env.BLOCKCHAIN_ENABLED !== 'false';
+    this.web3 = null;
+    this.account = null;
+    this.contract = null;
+    this.contractAddress = null;
+
+    // Enable blockchain by default in development and disable by default in production.
+    const isProduction = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+    const enabledFromEnv = process.env.BLOCKCHAIN_ENABLED;
+    this.enabled = enabledFromEnv
+      ? enabledFromEnv.toLowerCase() === 'true'
+      : !isProduction;
     
     if (!this.enabled) {
-      console.log('⚠️ Blockchain disabled in production mode');
+      console.log('⚠️ Blockchain integration disabled (BLOCKCHAIN_ENABLED=false)');
       return;
     }
     
     // Connect to Ganache or custom RPC
     const rpcUrl = process.env.BLOCKCHAIN_RPC_URL || 'http://127.0.0.1:7545';
     this.web3 = new Web3(rpcUrl);
-    this.account = null;
-    this.contract = null;
-    this.contractAddress = null;
   }
 
   async initialize() {
     if (!this.enabled) {
       console.log('⚠️ Blockchain integration disabled');
-      return;
+      return false;
     }
     
     try {
       // Get accounts from Ganache
       const accounts = await this.web3.eth.getAccounts();
+      if (!accounts || accounts.length === 0) {
+        console.warn('⚠️ No blockchain accounts found on RPC node');
+        return false;
+      }
+
       this.account = accounts[0];
       console.log('✅ Connected to Ganache');
       console.log('📍 Using account:', this.account);
@@ -39,16 +50,18 @@ class BlockchainService {
       if (fs.existsSync(contractPath)) {
         const contractJSON = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
         const networkId = await this.web3.eth.net.getId();
+        const deployedNetworks = contractJSON.networks || {};
+        const deployedContract = deployedNetworks[networkId];
         
-        if (contractJSON.networks[networkId]) {
-          this.contractAddress = contractJSON.networks[networkId].address;
+        if (deployedContract && deployedContract.address) {
+          this.contractAddress = deployedContract.address;
           this.contract = new this.web3.eth.Contract(
             contractJSON.abi,
             this.contractAddress
           );
           console.log('✅ Smart Contract loaded at:', this.contractAddress);
         } else {
-          console.warn('⚠️ Contract not deployed. Run: truffle migrate --network development');
+          console.warn(`⚠️ Contract not deployed on network ${networkId}. Run: truffle migrate --network development`);
         }
       } else {
         console.warn('⚠️ Contract artifact not found. Run: truffle migrate --network development');
@@ -121,7 +134,7 @@ class BlockchainService {
   }
 
   isConnected() {
-    return this.contract !== null;
+    return this.enabled && this.contract !== null;
   }
 }
 

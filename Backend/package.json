@@ -16,11 +16,12 @@
     "npm": ">=9.0.0"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "ejs": "^4.0.1",
     "express": "^5.2.1",
-    "@supabase/supabase-js": "^2.49.4",
+    "twilio": "^5.13.0",
     "web3": "^4.15.0"
   },
   "devDependencies": {
