@@ -2,6 +2,7 @@ const { createClient } = require("@supabase/supabase-js");
 require('dotenv').config();
 
 // Initialize Supabase client
+// Note: We use the service role key for backend operations that require elevated permissions.
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
